@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel | HireLocal</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body data-page="admin">
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="container nav">
+        <a href="/" class="logo">HireLocal</a>
+        <nav class="nav-links">
+          <a href="/search.html">Search</a>
+          <a href="/admin-login.html" data-action="admin-logout">Admin Logout</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section admin-page">
+        <div class="container">
+          <div class="section-heading wide">
+            <div>
+              <p class="eyebrow">Admin tools</p>
+              <h1>Verification and provider review</h1>
+            </div>
+            <p>Use the admin secret to load all providers, inspect their details, and approve verified accounts.</p>
+          </div>
+
+          <div class="glass-card admin-toolbar">
+            <div>
+              <p class="eyebrow">Secure admin session</p>
+              <h2>Provider moderation tools</h2>
+            </div>
+            <div class="toolbar-actions">
+              <button type="button" class="button secondary" id="admin-refresh-button">Refresh Providers</button>
+              <a class="button tertiary" href="/admin-login.html" data-action="admin-logout">Logout</a>
+            </div>
+          </div>
+
+          <section class="glass-card admin-results">
+            <div class="results-topbar">
+              <div>
+                <p class="eyebrow">Provider list</p>
+                <h2>All provider accounts</h2>
+              </div>
+              <p>Verify trusted providers from this panel. Verification ID photos are visible only here.</p>
+            </div>
+            <div id="admin-status"></div>
+            <div id="admin-providers" class="results-grid"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/main.js"></script>
+ <footer class="site-footer">
+  <div class="container">
+    <div class="footer-row">
+      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+      </div>
+    </div>
+  </div>
+</footer> 
+</body>
+</html>

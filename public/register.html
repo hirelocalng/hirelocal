@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Provider | HireLocal</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body data-page="register">
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="container nav">
+        <a href="/" class="logo">HireLocal</a>
+        <nav class="nav-links">
+          <a href="/search.html">Find Workers</a>
+          <a href="/login.html">Login</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="auth-shell">
+        <div class="container auth-layout wide-auth">
+          <div class="auth-copy">
+            <p class="eyebrow">Provider onboarding</p>
+            <h1>Create a profile clients can trust.</h1>
+            <p>
+              Add your core service details, location, and short bio so nearby clients
+              can find you quickly and understand what you do.
+            </p>
+            <div class="auth-benefits">
+              <article class="mini-card">
+                <span class="mini-label">Visibility</span>
+                <p>Appear in search results for your skill and service area.</p>
+              </article>
+              <article class="mini-card">
+                <span class="mini-label">Trust</span>
+                <p>Build confidence through verification, views, and reviews.</p>
+              </article>
+              <article class="mini-card">
+                <span class="mini-label">Growth</span>
+                <p>Use your dashboard to track profile performance over time.</p>
+              </article>
+            </div>
+          </div>
+
+          <form class="glass-card form-grid auth-form large-form" id="register-form">
+            <div class="form-header">
+              <h2>Provider Registration</h2>
+              <p>Complete the form below to create your account. Registration now requires 3 to 5 work photos and one verification ID photo.</p>
+            </div>
+
+            <label>
+              <span>Full Name</span>
+              <input type="text" name="name" required />
+            </label>
+            <label>
+              <span>Email Address</span>
+              <input type="email" name="email" required />
+            </label>
+            <label>
+              <span>Phone Number</span>
+              <input type="tel" name="phone" />
+            </label>
+            <label>
+              <span>WhatsApp Number</span>
+              <input type="tel" name="whatsapp" />
+            </label>
+            <label>
+              <span>Password</span>
+              <input type="password" name="password" required />
+            </label>
+            <label>
+              <span>Skill</span>
+              <input type="text" name="skill" placeholder="Plumbing, Generator Repair, Tailoring" required />
+            </label>
+            <label>
+              <span>Category</span>
+              <input type="text" name="category" placeholder="Home Repair, Beauty, Fashion, Cleaning" />
+            </label>
+            <label>
+              <span>State</span>
+              <input type="text" name="state" required />
+            </label>
+            <label>
+              <span>LGA</span>
+              <input type="text" name="lga" />
+            </label>
+            <label>
+              <span>City / Area</span>
+              <input type="text" name="city" />
+            </label>
+            <label class="full-width">
+              <span>Short Bio</span>
+              <textarea name="bio" rows="5" placeholder="Tell clients about your experience, specialty, and the jobs you handle best."></textarea>
+            </label>
+
+            <label>
+              <span>ID Type</span>
+              <select name="id_type" required>
+                <option value="">Select an ID type</option>
+                <option value="National ID">National ID</option>
+                <option value="Voter's Card">Voter's Card</option>
+                <option value="Driver's License">Driver's License</option>
+                <option value="International Passport">International Passport</option>
+              </select>
+            </label>
+
+            <label>
+              <span>ID Photo For Verification</span>
+              <input type="file" name="id_photo_file" accept="image/*" />
+            </label>
+
+            <label class="full-width">
+              <span>Work Photos</span>
+              <input type="file" name="work_photo_files" accept="image/*" multiple />
+              <small class="input-help">Upload at least 3 and at most 5 photos of completed jobs. These will appear on the public provider profile.</small>
+            </label>
+            <div class="full-width photo-preview-grid" id="register-work-preview"></div>
+            <div class="full-width single-photo-preview" id="register-id-preview"></div>
+
+            <button type="submit" class="button primary full-width-button">Create Account</button>
+            <p class="form-note">Already registered? <a href="/login.html">Login here</a>.</p>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/main.js"></script><footer class="site-footer">
+  <div class="container">
+    <div class="footer-row">
+      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

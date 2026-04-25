@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Provider Profile | HireLocal</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body data-page="profile">
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="container nav">
+        <a href="/" class="logo">HireLocal</a>
+        <nav class="nav-links">
+          <a href="/search.html">Back to Search</a>
+          <a href="/register.html">Become a Provider</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section profile-page">
+        <div class="container">
+          <section class="profile-showcase" id="provider-profile">
+            <div class="avatar-placeholder">HL</div>
+            <div class="profile-main-copy">
+              <p class="eyebrow">Provider profile</p>
+              <h1>Provider Name</h1>
+              <p class="profile-meta">Skill • Category • City, State</p>
+              <p class="profile-bio">Provider details will load here from your API.</p>
+            </div>
+          </section>
+
+          <section class="profile-grid">
+            <div class="profile-column">
+              <div class="glass-card stat-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Contact and trust</p>
+                    <h2>Client-ready details</h2>
+                  </div>
+                </div>
+                <div class="stats-grid">
+                  <div><strong>Phone</strong><span id="provider-phone">-</span></div>
+                  <div><strong>WhatsApp</strong><span id="provider-whatsapp">-</span></div>
+                  <div><strong>Rating</strong><span id="provider-rating">0.00</span></div>
+                  <div><strong>Views</strong><span id="provider-views">0</span></div>
+                </div>
+                <div class="contact-cta-row" id="provider-contact-links"></div>
+              </div>
+
+              <div class="glass-card reviews-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Portfolio</p>
+                    <h2>Work photo gallery</h2>
+                  </div>
+                </div>
+                <div id="provider-gallery" class="photo-gallery"></div>
+              </div>
+
+              <div class="glass-card reviews-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Reviews</p>
+                    <h2>What clients are saying</h2>
+                  </div>
+                </div>
+                <div id="reviews-list" class="stack-grid"></div>
+              </div>
+            </div>
+
+            <aside class="profile-side">
+              <div class="glass-card review-form-card">
+                <p class="eyebrow">Leave feedback</p>
+                <h2>Add a review</h2>
+                <form id="review-form" class="form-grid">
+                  <input type="hidden" name="provider_id" />
+                  <label>
+                    <span>Your Name</span>
+                    <input type="text" name="reviewer_name" required />
+                  </label>
+                  <label>
+                    <span>Rating</span>
+                    <select name="rating" required>
+                      <option value="">Select</option>
+                      <option value="5">5</option>
+                      <option value="4">4</option>
+                      <option value="3">3</option>
+                      <option value="2">2</option>
+                      <option value="1">1</option>
+                    </select>
+                  </label>
+                  <label class="full-width">
+                    <span>Comment</span>
+                    <textarea name="comment" rows="5" required></textarea>
+                  </label>
+                  <button type="submit" class="button primary full-width-button">Submit Review</button>
+                </form>
+              </div>
+            </aside>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/main.js"></script><footer class="site-footer">
+  <div class="container">
+    <div class="footer-row">
+      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

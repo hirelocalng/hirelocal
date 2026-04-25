@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Providers | HireLocal</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body data-page="search">
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="container nav">
+        <a href="/" class="logo">HireLocal</a>
+        <nav class="nav-links">
+          <a href="/register.html">Become a Provider</a>
+          <a href="/login.html">Login</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero hero-subpage">
+        <div class="container hero-subpage-inner">
+          <div>
+            <p class="eyebrow">Search marketplace</p>
+            <h1>Find local workers with confidence.</h1>
+            <p class="hero-copy">
+              Filter by category, state, LGA, or keywords to find verified professionals
+              who match the exact service you need.
+            </p>
+          </div>
+          <div class="hero-side-note">
+            <span class="soft-badge">Smart filtering</span>
+            <p>Review ratings, bio, and location before opening each profile.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section search-page">
+        <div class="container">
+          <form class="search-panel" id="search-form">
+            <div class="search-field-group">
+              <label>
+                <span>Category</span>
+                <input type="text" name="category" placeholder="Plumber, Tailor, Cleaner" />
+              </label>
+              <label>
+                <span>State</span>
+                <input type="text" name="state" placeholder="Lagos" />
+              </label>
+              <label>
+                <span>LGA</span>
+                <input type="text" name="lga" placeholder="Ikeja" />
+              </label>
+              <label>
+                <span>Keyword</span>
+                <input type="text" name="query" placeholder="Installation, repair, urgent cleaning" />
+              </label>
+            </div>
+            <div class="search-action-row">
+              <button type="submit" class="button primary">Search Providers</button>
+              <div class="filter-pills">
+                <button class="tag-chip" type="button" data-search-chip="Plumbing">Plumbing</button>
+                <button class="tag-chip" type="button" data-search-chip="Electrical">Electrical</button>
+                <button class="tag-chip" type="button" data-search-chip="Cleaning">Cleaning</button>
+                <button class="tag-chip" type="button" data-search-chip="Fashion">Fashion</button>
+              </div>
+            </div>
+          </form>
+
+          <div class="results-shell">
+            <aside class="side-panel">
+              <div class="side-card">
+                <span class="mini-label">Search tips</span>
+                <ul class="plain-list">
+                  <li>Use a category for faster results.</li>
+                  <li>Add a state or LGA to narrow the list.</li>
+                  <li>Open profiles to see reviews and direct contacts.</li>
+                </ul>
+              </div>
+              <div class="side-card">
+                <span class="mini-label">Trust signals</span>
+                <p>Verified providers and strong review counts should usually be your first stop.</p>
+              </div>
+            </aside>
+
+            <section class="results-area">
+              <div class="results-topbar">
+                <div>
+                  <p class="eyebrow">Results</p>
+                  <h2>Available providers</h2>
+                </div>
+                <p id="search-summary">Search results will appear here.</p>
+              </div>
+              <div id="search-results" class="results-grid"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/main.js"></script><footer class="site-footer">
+  <div class="container">
+    <div class="footer-row">
+      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

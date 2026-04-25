@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HireLocal | Trusted Local Workers Near You</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body data-page="home">
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="container nav">
+        <a href="/" class="logo">HireLocal</a>
+        <nav class="nav-links">
+          <a href="/search.html">Find Workers</a>
+          <a href="/register.html">Become a Provider</a>
+          <a href="/login.html">Login</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero hero-home">
+        <div class="container hero-layout">
+          <div class="hero-copy-block">
+            <p class="eyebrow">Local jobs, trusted people, faster connections</p>
+            <h1>Find reliable artisans and service professionals in your area.</h1>
+            <p class="hero-copy">
+              HireLocal helps clients discover verified plumbers, electricians, cleaners,
+              tailors, painters, repair technicians, and other skilled workers without the usual guesswork.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button primary" href="/search.html">Start Searching</a>
+              <a class="button tertiary" href="/register.html">List Your Skill</a>
+            </div>
+
+            <div class="hero-metrics" id="home-stats">
+              <article class="metric-card">
+                <strong>Fast Search</strong>
+                <span>Browse by category, state, LGA, and keyword.</span>
+              </article>
+              <article class="metric-card">
+                <strong>Verified Profiles</strong>
+                <span>Highlight trusted workers before clients reach out.</span>
+              </article>
+              <article class="metric-card">
+                <strong>Direct Contact</strong>
+                <span>Phone and WhatsApp details are easy to access.</span>
+              </article>
+            </div>
+          </div>
+
+          <div class="hero-spotlight">
+            <div class="spotlight-panel">
+              <div class="spotlight-head">
+                <span class="soft-badge">Quick Client Search</span>
+                <p>Search top local workers in seconds.</p>
+              </div>
+
+              <form class="glass-card compact-form" id="quick-search-form">
+                <label>
+                  <span>Category</span>
+                  <input type="text" name="category" placeholder="Plumber, Tailor, Electrician" />
+                </label>
+                <label>
+                  <span>State</span>
+                  <input type="text" name="state" placeholder="Lagos" />
+                </label>
+                <label>
+                  <span>What do you need?</span>
+                  <input type="text" name="query" placeholder="Generator repair, cleaning, installation" />
+                </label>
+                <button type="submit" class="button primary full">Search Professionals</button>
+              </form>
+
+              <div class="mini-grid">
+                <article class="mini-card">
+                  <span class="mini-label">Top Categories</span>
+                  <p>Home repairs, beauty, fashion, cleaning, and maintenance.</p>
+                </article>
+                <article class="mini-card">
+                  <span class="mini-label">Best Use</span>
+                  <p>Perfect for nearby jobs where trust and speed matter most.</p>
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-heading wide">
+            <div>
+              <p class="eyebrow">Platform flow</p>
+              <h2>A marketplace built for local service discovery</h2>
+            </div>
+            <p>
+              The experience is designed to feel simple for clients while still giving
+              skilled workers a real profile they can grow over time.
+            </p>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card">
+              <span class="feature-number">01</span>
+              <h3>Search by service and location</h3>
+              <p>Clients narrow workers down by category, state, LGA, or the exact kind of job they need done.</p>
+            </article>
+            <article class="feature-card">
+              <span class="feature-number">02</span>
+              <h3>Review rich provider profiles</h3>
+              <p>Each provider has a dedicated profile with bio, contact details, ratings, reviews, and service area.</p>
+            </article>
+            <article class="feature-card">
+              <span class="feature-number">03</span>
+              <h3>Grow trust with verified accounts</h3>
+              <p>Workers can be reviewed and verified so clients have stronger confidence before reaching out.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-contrast">
+        <div class="container">
+          <div class="section-heading centered">
+            <p class="eyebrow">Popular services</p>
+            <h2>Built around the work people actually search for every day</h2>
+          </div>
+          <div class="tag-cloud">
+            <button class="tag-chip" data-quick-category="Plumbing">Plumbing</button>
+            <button class="tag-chip" data-quick-category="Electrical">Electrical Repairs</button>
+            <button class="tag-chip" data-quick-category="Cleaning">Cleaning</button>
+            <button class="tag-chip" data-quick-category="Fashion">Fashion Design</button>
+            <button class="tag-chip" data-quick-category="Painting">Painting</button>
+            <button class="tag-chip" data-quick-category="Carpentry">Carpentry</button>
+            <button class="tag-chip" data-quick-category="Generator Repair">Generator Repair</button>
+            <button class="tag-chip" data-quick-category="Hair Styling">Hair Styling</button>
+            <button class="tag-chip" data-quick-category="AC Technician">AC Technician</button>
+            <button class="tag-chip" data-quick-category="POP Installation">POP Installation</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="split-banner">
+            <div>
+              <p class="eyebrow">Featured profiles</p>
+              <h2>What a strong provider listing looks like</h2>
+              <p>
+                Your homepage can spotlight verified workers and make the platform feel active
+                even before users start searching.
+              </p>
+            </div>
+            <div class="featured-list" id="featured-providers">
+              <article class="profile-preview">
+                <div class="profile-preview-top">
+                  <span class="avatar-dot">PL</span>
+                  <div>
+                    <h3>Verified plumber</h3>
+                    <p>Lekki, Lagos</p>
+                  </div>
+                </div>
+                <p>High-intent providers discovered from your search results can appear here automatically.</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="cta-panel">
+            <div>
+              <p class="eyebrow">For skilled workers</p>
+              <h2>Turn your local reputation into a professional online profile.</h2>
+              <p>Create an account, get verified, collect reviews, and let clients discover your work by location.</p>
+            </div>
+            <div class="cta-actions">
+              <a class="button primary" href="/register.html">Create Provider Account</a>
+              <a class="button secondary" href="/dashboard.html">View Dashboard</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-row">
+        <div>
+          <strong>HireLocal</strong>
+          <p>Connecting local skill workers with the clients who need them most.</p>
+        </div>
+        <div class="footer-links">
+          <a href="/search.html">Search</a>
+          <a href="/register.html">Register</a>
+          <a href="/login.html">Login</a>
+          <a href="/admin-login.html">Admin</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/js/main.js"></script><footer class="site-footer">
+  <div class="container">
+    <div class="footer-row">
+      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
