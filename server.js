@@ -425,6 +425,17 @@ async function createTables() {
       CREATE INDEX IF NOT EXISTS idx_payments_provider_id
       ON payments(provider_id)
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS search_logs (
+        id SERIAL PRIMARY KEY,
+        category VARCHAR(100),
+        state VARCHAR(100),
+        query VARCHAR(100),
+        results_count INTEGER,
+        searched_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
 
     console.log('Tables created successfully');
   } catch (err) {
@@ -698,8 +709,9 @@ app.get('/api/search', async (req, res) => {
   let count = 1;
 
   if (category) {
-    sql += ` AND category ILIKE $${count++}`;
+    sql += ` AND (category ILIKE $${count} OR skill ILIKE $${count})`;
     params.push(`%${category}%`);
+    count += 1;
   }
   if (state) {
     sql += ` AND state ILIKE $${count++}`;
@@ -719,6 +731,15 @@ app.get('/api/search', async (req, res) => {
 
   try {
     const result = await pool.query(sql, params);
+    try {
+      await pool.query(
+        `INSERT INTO search_logs (category, state, query, results_count)
+         VALUES ($1, $2, $3, $4)`,
+        [category || null, state || null, query || null, result.rows.length]
+      );
+    } catch (logErr) {
+      console.error('Search log error:', logErr.message);
+    }
     res.json({ success: true, providers: result.rows.map(enrichProvider) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -1082,7 +1103,26 @@ app.post('/api/admin/verify/:id', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+app.get('/api/admin/searches', async (req, res) => {
+  if (!pool) return sendDatabaseUnavailable(res);
 
+  const adminAuth = getAdminAuth(req);
+  if (!adminAuth) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT category, state, query, results_count, searched_at
+       FROM search_logs
+       ORDER BY searched_at DESC
+       LIMIT 200`
+    );
+    res.json({ success: true, searches: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`HireLocal server running on port ${PORT}`);
