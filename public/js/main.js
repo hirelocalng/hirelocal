@@ -857,7 +857,8 @@ if (page === "admin") {
             `).join("") || `<div class="empty-state">No work photos uploaded.</div>`}
           </div>
         </div>
-        ${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`}
+       ${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`}
+<button class="button secondary full admin-delete" data-id="${provider.id}" style="background:rgba(166,63,56,0.12);color:#a63f38;margin-top:0.5rem;">Delete Provider</button>
       </article>
     `).join("");
 
@@ -885,6 +886,29 @@ if (page === "admin") {
       });
     });
   };
+  list.querySelectorAll(".admin-delete").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!confirm("Are you sure you want to delete this provider? This cannot be undone.")) return;
+        button.disabled = true;
+        try {
+          const { data } = await requestJson(`/api/admin/delete/${button.dataset.id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+          }, "admin");
+
+          if (data.success) {
+            setInlineStatus(statusContainer, "Provider deleted.", "success");
+            loadAdminProviders();
+          } else {
+            setInlineStatus(statusContainer, data.message || "Unable to delete provider.", "error");
+            button.disabled = false;
+          }
+        } catch (error) {
+          setInlineStatus(statusContainer, "Unable to delete provider right now.", "error");
+          button.disabled = false;
+        }
+      });
+    });
 
   const loadAdminProviders = async () => {
     if (!getStoredAdminToken()) {

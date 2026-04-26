@@ -1142,6 +1142,33 @@ app.get('/api/admin/searches', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+app.delete('/api/admin/delete/:id', async (req, res) => {
+  if (!pool) return sendDatabaseUnavailable(res);
+
+  const adminAuth = getAdminAuth(req);
+  if (!adminAuth) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  const providerId = Number(req.params.id);
+  if (!Number.isInteger(providerId)) {
+    return res.status(400).json({ success: false, message: 'Invalid provider id.' });
+  }
+
+  try {
+    await pool.query('DELETE FROM reviews WHERE provider_id = $1', [providerId]);
+    await pool.query('DELETE FROM payments WHERE provider_id = $1', [providerId]);
+    const result = await pool.query('DELETE FROM providers WHERE id = $1 RETURNING id', [providerId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Provider not found.' });
+    }
+
+    res.json({ success: true, message: 'Provider deleted.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`HireLocal server running on port ${PORT}`);
