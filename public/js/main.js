@@ -352,7 +352,7 @@ if (page === "home") {
     if (!featuredProviders) return;
     try {
       const { data } = await requestJson("/api/search", {}, false);
-      const providers = (data.providers || []).slice(0, 2);
+      const providers = (data.providers || []).slice(0, 10);
       if (!providers.length) return;
 
       featuredProviders.innerHTML = providers.map((provider) => `
