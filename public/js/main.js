@@ -481,7 +481,7 @@ if (page === "profile") {
           links.push(`<a class="button secondary" href="tel:${escapeHtml(provider.phone)}">Call Provider</a>`);
         }
         if (provider.whatsapp) {
-         links.push(`<a class="button tertiary" href="https://wa.me/${String(provider.whatsapp).replace(/\D/g, '').replace(/^0/, '234')}" target="_blank" rel="noreferrer">WhatsApp</a>`); 
+          links.push(`<a class="button tertiary" href="https://wa.me/${String(provider.whatsapp).replace(/\D/g, '').replace(/^0/, '234')}" target="_blank" rel="noreferrer">WhatsApp</a>`);
         }
         contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct contact details available yet.</div>`;
       }
@@ -857,8 +857,8 @@ if (page === "admin") {
             `).join("") || `<div class="empty-state">No work photos uploaded.</div>`}
           </div>
         </div>
-       ${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`}
-<button class="button secondary full admin-delete" data-id="${provider.id}" style="background:rgba(166,63,56,0.12);color:#a63f38;margin-top:0.5rem;">Delete Provider</button>
+        ${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`}
+        <button class="button secondary full admin-delete" data-id="${provider.id}" style="background:rgba(166,63,56,0.12);color:#a63f38;margin-top:0.5rem;">Delete Provider</button>
       </article>
     `).join("");
 
@@ -885,8 +885,8 @@ if (page === "admin") {
         }
       });
     });
-  };
-  list.querySelectorAll(".admin-delete").forEach((button) => {
+
+    list.querySelectorAll(".admin-delete").forEach((button) => {
       button.addEventListener("click", async () => {
         if (!confirm("Are you sure you want to delete this provider? This cannot be undone.")) return;
         button.disabled = true;
@@ -909,6 +909,7 @@ if (page === "admin") {
         }
       });
     });
+  };
 
   const loadAdminProviders = async () => {
     if (!getStoredAdminToken()) {
