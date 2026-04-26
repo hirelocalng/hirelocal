@@ -1,4 +1,6 @@
 require('dotenv').config();
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
@@ -293,7 +295,18 @@ const enrichProvider = (provider) => ({
   ...provider,
   subscription: getSubscriptionSnapshot(provider)
 });
-
+async function sendEmail(to, subject, html) {
+  try {
+    await resend.emails.send({
+      from: 'HireLocal <onboarding@resend.dev>',
+      to,
+      subject,
+      html
+    });
+  } catch (err) {
+    console.error('Email error:', err.message);
+  }
+}
 const buildPaymentReference = (providerId) =>
   `HL-SUB-${providerId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
@@ -541,6 +554,12 @@ app.post('/api/register', async (req, res) => {
 
     const provider = enrichProvider(result.rows[0]);
     const token = signToken({ role: 'provider', sub: provider.id }, 60 * 60 * 24 * 14);
+    await sendEmail(email, 'Welcome to HireLocal!', `
+      <h2>Welcome, ${name}!</h2>
+      <p>Your profile is now live on HireLocal for 7 days free.</p>
+      <p>After 7 days, pay ₦1,000 every 14 days to keep your profile visible.</p>
+      <p><a href="https://hirelocal.ng/login.html">Login to your dashboard</a></p>
+    `);
     res.json({ success: true, provider, token });
   } catch (err) {
     console.error('Register error:', err.message);

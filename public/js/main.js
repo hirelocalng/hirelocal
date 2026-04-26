@@ -481,7 +481,7 @@ if (page === "profile") {
           links.push(`<a class="button secondary" href="tel:${escapeHtml(provider.phone)}">Call Provider</a>`);
         }
         if (provider.whatsapp) {
-          links.push(`<a class="button tertiary" href="https://wa.me/${encodeURIComponent(String(provider.whatsapp).replace(/\D/g, ""))}" target="_blank" rel="noreferrer">WhatsApp</a>`);
+         links.push(`<a class="button tertiary" href="https://wa.me/${String(provider.whatsapp).replace(/\D/g, '').replace(/^0/, '234')}" target="_blank" rel="noreferrer">WhatsApp</a>`); 
         }
         contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct contact details available yet.</div>`;
       }
