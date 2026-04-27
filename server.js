@@ -1,862 +1,866 @@
-require('dotenv').config();
-const { Resend } = require('resend');
+require(‘dotenv’).config();
+const { Resend } = require(‘resend’);
 const resend = new Resend(process.env.RESEND_API_KEY);
-const express = require('express');
-const path = require('path');
-const crypto = require('crypto');
-const { Pool } = require('pg');
+const express = require(‘express’);
+const path = require(‘path’);
+const crypto = require(‘crypto’);
+const { Pool } = require(‘pg’);
 
 const app = express();
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === ‘production’;
 
 const SUBSCRIPTION_TRIAL_DAYS = 7;
 const SUBSCRIPTION_RENEWAL_DAYS = 14;
 const SUBSCRIPTION_AMOUNT_NGN = 1000;
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const KORAPAY_BASE_URL = 'https://api.korapay.com/merchant/api/v1';
+const KORAPAY_BASE_URL = ‘https://api.korapay.com/merchant/api/v1’;
 
-const rawDatabaseUrl = (process.env.DATABASE_URL || '').trim();
+const rawDatabaseUrl = (process.env.DATABASE_URL || ‘’).trim();
 const hasDatabase =
-  rawDatabaseUrl &&
-  rawDatabaseUrl !== 'your_database_url_here' &&
-  rawDatabaseUrl !== 'your_database_url';
+rawDatabaseUrl &&
+rawDatabaseUrl !== ‘your_database_url_here’ &&
+rawDatabaseUrl !== ‘your_database_url’;
 const isLocalDatabase =
-  rawDatabaseUrl.includes('@localhost:') ||
-  rawDatabaseUrl.includes('@127.0.0.1:');
+rawDatabaseUrl.includes(’@localhost:’) ||
+rawDatabaseUrl.includes(’@127.0.0.1:’);
 const useSsl =
-  process.env.DATABASE_SSL === 'true' ||
-  (!isLocalDatabase && rawDatabaseUrl.startsWith('postgres'));
+process.env.DATABASE_SSL === ‘true’ ||
+(!isLocalDatabase && rawDatabaseUrl.startsWith(‘postgres’));
 
 const pool = hasDatabase
-  ? new Pool({
-      connectionString: rawDatabaseUrl,
-      ssl: useSsl ? { rejectUnauthorized: false } : false
-    })
-  : null;
+? new Pool({
+connectionString: rawDatabaseUrl,
+ssl: useSsl ? { rejectUnauthorized: false } : false
+})
+: null;
 
-const tokenSecret = process.env.TOKEN_SECRET || 'change-this-token-secret-before-deploying';
-const korapaySecretKey = (process.env.KORAPAY_SECRET_KEY || '').trim();
-const korapayPublicKey = (process.env.KORAPAY_PUBLIC_KEY || '').trim();
+const tokenSecret = process.env.TOKEN_SECRET || ‘change-this-token-secret-before-deploying’;
+const korapaySecretKey = (process.env.KORAPAY_SECRET_KEY || ‘’).trim();
+const korapayPublicKey = (process.env.KORAPAY_PUBLIC_KEY || ‘’).trim();
 
 if (!process.env.TOKEN_SECRET) {
-  console.warn('TOKEN_SECRET is not set. Add it in .env before deployment.');
+console.warn(‘TOKEN_SECRET is not set. Add it in .env before deployment.’);
 }
 
-app.disable('x-powered-by');
+app.disable(‘x-powered-by’);
 app.use((req, res, next) => {
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  if (isProduction) {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
-  next();
+res.setHeader(‘X-Frame-Options’, ‘DENY’);
+res.setHeader(‘X-Content-Type-Options’, ‘nosniff’);
+res.setHeader(‘Referrer-Policy’, ‘strict-origin-when-cross-origin’);
+res.setHeader(‘Permissions-Policy’, ‘camera=(), microphone=(), geolocation=()’);
+if (isProduction) {
+res.setHeader(‘Strict-Transport-Security’, ‘max-age=31536000; includeSubDomains’);
+}
+next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.static(path.join(__dirname, ‘public’)));
+app.use(express.json({ limit: ‘20mb’ }));
+app.use(express.urlencoded({ extended: true, limit: ‘20mb’ }));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.get(’/’, (req, res) => {
+res.sendFile(path.join(__dirname, ‘public’, ‘index.html’));
 });
 
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    status: 'ok',
-    databaseConfigured: Boolean(pool),
-    korapayConfigured: Boolean(korapaySecretKey && korapayPublicKey)
-  });
+app.get(’/health’, (req, res) => {
+res.json({
+success: true,
+status: ‘ok’,
+databaseConfigured: Boolean(pool),
+korapayConfigured: Boolean(korapaySecretKey && korapayPublicKey)
+});
 });
 
-// FIXED: added 'photo' to all column sets so it's always returned
-const publicProviderColumns = `
-  id, name, email, phone, whatsapp, skill, category, state, lga, city, bio, photo,
-  work_photos, plan, verified, rating, review_count, views, created_at, subscription_expiry, is_active
-`;
+const publicProviderColumns = `id, name, email, phone, whatsapp, skill, category, state, lga, city, bio, photo, work_photos, plan, verified, rating, review_count, views, created_at, subscription_expiry, is_active`;
 
-const ownerProviderColumns = `
-  ${publicProviderColumns}, id_type
-`;
+// Owner columns include name_changed_at so the frontend knows when they last changed it
+const ownerProviderColumns = `${publicProviderColumns}, id_type, name_changed_at`;
 
-const adminProviderColumns = `
-  ${publicProviderColumns}, id_type, id_photo
-`;
+const adminProviderColumns = `${publicProviderColumns}, id_type, id_photo, name_changed_at`;
 
 const sendDatabaseUnavailable = (res) =>
-  res.status(503).json({
-    success: false,
-    message: 'Database is not configured yet. Add a real DATABASE_URL in your .env file.'
-  });
+res.status(503).json({
+success: false,
+message: ‘Database is not configured yet. Add a real DATABASE_URL in your .env file.’
+});
 
 const sendKorapayUnavailable = (res) =>
-  res.status(503).json({
-    success: false,
-    message: 'Korapay keys are not configured yet. Add KORAPAY_SECRET_KEY and KORAPAY_PUBLIC_KEY to .env.'
-  });
+res.status(503).json({
+success: false,
+message: ‘Korapay keys are not configured yet. Add KORAPAY_SECRET_KEY and KORAPAY_PUBLIC_KEY to .env.’
+});
 
 const sanitizeText = (value) => {
-  if (typeof value !== 'string') return '';
-  return value.trim();
+if (typeof value !== ‘string’) return ‘’;
+return value.trim();
 };
 
 const sanitizeOptionalText = (value) => {
-  const trimmed = sanitizeText(value);
-  return trimmed || null;
+const trimmed = sanitizeText(value);
+return trimmed || null;
 };
 
 const parsePhotoArray = (value) => {
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeText(item)).filter(Boolean);
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) return [];
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item) => sanitizeText(item)).filter(Boolean);
-      }
-    } catch (error) {
-      return [trimmed];
-    }
-  }
-  return [];
+if (Array.isArray(value)) {
+return value.map((item) => sanitizeText(item)).filter(Boolean);
+}
+if (typeof value === ‘string’) {
+const trimmed = value.trim();
+if (!trimmed) return [];
+try {
+const parsed = JSON.parse(trimmed);
+if (Array.isArray(parsed)) {
+return parsed.map((item) => sanitizeText(item)).filter(Boolean);
+}
+} catch (error) {
+return [trimmed];
+}
+}
+return [];
 };
 
 const isImageDataUrl = (value) =>
-  typeof value === 'string' && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
+typeof value === ‘string’ && /^data:image/[a-zA-Z0-9.+-]+;base64,/.test(value);
 
 const validateWorkPhotos = (photos) => {
-  if (photos.length < 3 || photos.length > 5) {
-    return 'Please upload between 3 and 5 work photos.';
-  }
-  if (!photos.every(isImageDataUrl)) {
-    return 'Work photos must be valid images.';
-  }
-  return null;
+if (photos.length < 3 || photos.length > 5) {
+return ‘Please upload between 3 and 5 work photos.’;
+}
+if (!photos.every(isImageDataUrl)) {
+return ‘Work photos must be valid images.’;
+}
+return null;
+};
+
+// Returns true if the provider is allowed to change their name.
+// Rule: name_changed_at must be null (never changed) OR more than 30 days ago.
+const canChangeName = (nameChangedAt) => {
+if (!nameChangedAt) return true;
+const last = new Date(nameChangedAt);
+const now = new Date();
+const diffMs = now.getTime() - last.getTime();
+const diffDays = diffMs / (1000 * 60 * 60 * 24);
+return diffDays >= 30;
+};
+
+// Returns how many days are left before the provider can change their name again.
+const daysUntilNameChange = (nameChangedAt) => {
+if (!nameChangedAt) return 0;
+const last = new Date(nameChangedAt);
+const now = new Date();
+const diffMs = now.getTime() - last.getTime();
+const diffDays = diffMs / (1000 * 60 * 60 * 24);
+return Math.ceil(30 - diffDays);
 };
 
 const base64UrlEncode = (input) =>
-  Buffer.from(input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+Buffer.from(input)
+.toString(‘base64’)
+.replace(/+/g, ‘-’)
+.replace(///g, ‘_’)
+.replace(/=+$/g, ‘’);
 
 const base64UrlDecode = (input) => {
-  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
-  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
-  return Buffer.from(normalized + padding, 'base64').toString('utf8');
+const normalized = input.replace(/-/g, ‘+’).replace(/_/g, ‘/’);
+const padding = normalized.length % 4 === 0 ? ‘’ : ‘=’.repeat(4 - (normalized.length % 4));
+return Buffer.from(normalized + padding, ‘base64’).toString(‘utf8’);
 };
 
 const signToken = (payload, expiresInSeconds = 60 * 60 * 24 * 7) => {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const finalPayload = { ...payload, iat: now, exp: now + expiresInSeconds };
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(finalPayload));
-  const signature = crypto
-    .createHmac('sha256', tokenSecret)
-    .update(`${encodedHeader}.${encodedPayload}`)
-    .digest('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  return `${encodedHeader}.${encodedPayload}.${signature}`;
+const header = { alg: ‘HS256’, typ: ‘JWT’ };
+const now = Math.floor(Date.now() / 1000);
+const finalPayload = { …payload, iat: now, exp: now + expiresInSeconds };
+const encodedHeader = base64UrlEncode(JSON.stringify(header));
+const encodedPayload = base64UrlEncode(JSON.stringify(finalPayload));
+const signature = crypto
+.createHmac(‘sha256’, tokenSecret)
+.update(`${encodedHeader}.${encodedPayload}`)
+.digest(‘base64’)
+.replace(/+/g, ‘-’)
+.replace(///g, ‘_’)
+.replace(/=+$/g, ‘’);
+return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
 const verifyToken = (token, expectedRole) => {
-  if (!token) return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [encodedHeader, encodedPayload, incomingSignature] = parts;
-  const expectedSignature = crypto
-    .createHmac('sha256', tokenSecret)
-    .update(`${encodedHeader}.${encodedPayload}`)
-    .digest('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(incomingSignature))) {
-    return null;
-  }
-  try {
-    const payload = JSON.parse(base64UrlDecode(encodedPayload));
-    const now = Math.floor(Date.now() / 1000);
-    if (!payload.exp || payload.exp < now) return null;
-    if (expectedRole && payload.role !== expectedRole) return null;
-    return payload;
-  } catch (error) {
-    return null;
-  }
+if (!token) return null;
+const parts = token.split(’.’);
+if (parts.length !== 3) return null;
+const [encodedHeader, encodedPayload, incomingSignature] = parts;
+const expectedSignature = crypto
+.createHmac(‘sha256’, tokenSecret)
+.update(`${encodedHeader}.${encodedPayload}`)
+.digest(‘base64’)
+.replace(/+/g, ‘-’)
+.replace(///g, ‘_’)
+.replace(/=+$/g, ‘’);
+if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(incomingSignature))) {
+return null;
+}
+try {
+const payload = JSON.parse(base64UrlDecode(encodedPayload));
+const now = Math.floor(Date.now() / 1000);
+if (!payload.exp || payload.exp < now) return null;
+if (expectedRole && payload.role !== expectedRole) return null;
+return payload;
+} catch (error) {
+return null;
+}
 };
 
 const hashPassword = (password) =>
-  new Promise((resolve, reject) => {
-    const salt = crypto.randomBytes(16).toString('hex');
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
-      if (err) return reject(err);
-      resolve(`scrypt:${salt}:${derivedKey.toString('hex')}`);
-    });
-  });
+new Promise((resolve, reject) => {
+const salt = crypto.randomBytes(16).toString(‘hex’);
+crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+if (err) return reject(err);
+resolve(`scrypt:${salt}:${derivedKey.toString('hex')}`);
+});
+});
 
 const verifyPassword = (password, storedPassword) =>
-  new Promise((resolve, reject) => {
-    if (!storedPassword) { resolve(false); return; }
-    if (!storedPassword.startsWith('scrypt:')) { resolve(password === storedPassword); return; }
-    const [, salt, key] = storedPassword.split(':');
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
-      if (err) return reject(err);
-      const storedKeyBuffer = Buffer.from(key, 'hex');
-      resolve(
-        storedKeyBuffer.length === derivedKey.length &&
-        crypto.timingSafeEqual(storedKeyBuffer, derivedKey)
-      );
-    });
-  });
+new Promise((resolve, reject) => {
+if (!storedPassword) { resolve(false); return; }
+if (!storedPassword.startsWith(‘scrypt:’)) { resolve(password === storedPassword); return; }
+const [, salt, key] = storedPassword.split(’:’);
+crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+if (err) return reject(err);
+const storedKeyBuffer = Buffer.from(key, ‘hex’);
+resolve(
+storedKeyBuffer.length === derivedKey.length &&
+crypto.timingSafeEqual(storedKeyBuffer, derivedKey)
+);
+});
+});
 
 const getBearerToken = (req) => {
-  const authHeader = req.headers.authorization || '';
-  if (!authHeader.startsWith('Bearer ')) return null;
-  return authHeader.slice(7).trim();
+const authHeader = req.headers.authorization || ‘’;
+if (!authHeader.startsWith(’Bearer ’)) return null;
+return authHeader.slice(7).trim();
 };
 
-const getProviderAuth = (req) => verifyToken(getBearerToken(req), 'provider');
+const getProviderAuth = (req) => verifyToken(getBearerToken(req), ‘provider’);
 
 const getAdminAuth = (req) => {
-  const bearerPayload = verifyToken(getBearerToken(req), 'admin');
-  if (bearerPayload) return bearerPayload;
-  const fallbackSecret = sanitizeText(req.body?.secret || req.query?.secret);
-  if (process.env.ADMIN_SECRET && fallbackSecret === process.env.ADMIN_SECRET) {
-    return { role: 'admin', mode: 'secret-fallback' };
-  }
-  return null;
+const bearerPayload = verifyToken(getBearerToken(req), ‘admin’);
+if (bearerPayload) return bearerPayload;
+const fallbackSecret = sanitizeText(req.body?.secret || req.query?.secret);
+if (process.env.ADMIN_SECRET && fallbackSecret === process.env.ADMIN_SECRET) {
+return { role: ‘admin’, mode: ‘secret-fallback’ };
+}
+return null;
 };
 
 const toValidDate = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+if (!value) return null;
+const date = new Date(value);
+return Number.isNaN(date.getTime()) ? null : date;
 };
 
 const getSubscriptionSnapshot = (provider) => {
-  const now = new Date();
-  const expiry = toValidDate(provider.subscription_expiry);
-  const active = Boolean(provider.is_active) && Boolean(expiry && expiry > now);
-  const millisecondsRemaining = expiry ? expiry.getTime() - now.getTime() : 0;
-  const daysRemaining = active
-    ? Math.max(0, Math.ceil(millisecondsRemaining / (24 * 60 * 60 * 1000)))
-    : 0;
-  const warning = expiry && (millisecondsRemaining <= 3 * 24 * 60 * 60 * 1000 || millisecondsRemaining <= 0);
-  return {
-    status: active ? 'Active' : 'Expired',
-    isActive: active,
-    expiryDate: expiry ? expiry.toISOString() : null,
-    daysRemaining,
-    warning,
-    warningMessage: expiry
-      ? `Your profile goes offline on ${expiry.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}`
-      : 'Your profile is offline until a subscription date is set.'
-  };
+const now = new Date();
+const expiry = toValidDate(provider.subscription_expiry);
+const active = Boolean(provider.is_active) && Boolean(expiry && expiry > now);
+const millisecondsRemaining = expiry ? expiry.getTime() - now.getTime() : 0;
+const daysRemaining = active
+? Math.max(0, Math.ceil(millisecondsRemaining / (24 * 60 * 60 * 1000)))
+: 0;
+const warning = expiry && (millisecondsRemaining <= 3 * 24 * 60 * 60 * 1000 || millisecondsRemaining <= 0);
+return {
+status: active ? ‘Active’ : ‘Expired’,
+isActive: active,
+expiryDate: expiry ? expiry.toISOString() : null,
+daysRemaining,
+warning,
+warningMessage: expiry
+? `Your profile goes offline on ${expiry.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}`
+: ‘Your profile is offline until a subscription date is set.’
+};
 };
 
 const enrichProvider = (provider) => ({
-  ...provider,
-  subscription: getSubscriptionSnapshot(provider)
+…provider,
+subscription: getSubscriptionSnapshot(provider)
 });
 
 async function sendEmail(to, subject, html) {
-  try {
-    await resend.emails.send({ from: 'HireLocal <onboarding@resend.dev>', to, subject, html });
-  } catch (err) {
-    console.error('Email error:', err.message);
-  }
+try {
+await resend.emails.send({ from: ‘HireLocal [onboarding@resend.dev](mailto:onboarding@resend.dev)’, to, subject, html });
+} catch (err) {
+console.error(‘Email error:’, err.message);
+}
 }
 
 const buildPaymentReference = (providerId) =>
-  `HL-SUB-${providerId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+`HL-SUB-${providerId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
 async function callKorapay(pathname, options = {}) {
-  const response = await fetch(`${KORAPAY_BASE_URL}${pathname}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${korapaySecretKey}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    }
-  });
-  let payload = {};
-  try { payload = await response.json(); }
-  catch (error) { payload = { status: false, message: 'Unexpected response from Korapay.' }; }
-  return { response, payload };
+const response = await fetch(`${KORAPAY_BASE_URL}${pathname}`, {
+…options,
+headers: {
+Authorization: `Bearer ${korapaySecretKey}`,
+‘Content-Type’: ‘application/json’,
+…(options.headers || {})
+}
+});
+let payload = {};
+try { payload = await response.json(); }
+catch (error) { payload = { status: false, message: ‘Unexpected response from Korapay.’ }; }
+return { response, payload };
 }
 
 async function createTables() {
-  if (!pool) { console.warn('Database is not configured. Skipping table creation.'); return; }
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS providers (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        phone VARCHAR(20),
-        whatsapp VARCHAR(20),
-        password VARCHAR(255),
-        skill VARCHAR(100),
-        category VARCHAR(100),
-        state VARCHAR(100),
-        lga VARCHAR(100),
-        city VARCHAR(100),
-        bio TEXT,
-        photo TEXT,
-        work_photos JSONB DEFAULT '[]'::jsonb,
-        id_type VARCHAR(100),
-        id_photo TEXT,
-        plan VARCHAR(20) DEFAULT 'free',
-        verified BOOLEAN DEFAULT false,
-        rating DECIMAL(3,2) DEFAULT 0,
-        review_count INTEGER DEFAULT 0,
-        views INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await pool.query(`ALTER TABLE providers ALTER COLUMN password TYPE VARCHAR(255)`);
-    await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS photo TEXT`);
-    await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS work_photos JSONB DEFAULT '[]'::jsonb`);
-    await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS id_type VARCHAR(100)`);
-    await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS id_photo TEXT`);
-    await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMP`);
-    await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
-    await pool.query(`
-      UPDATE providers
-      SET subscription_expiry = NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days'
-      WHERE subscription_expiry IS NULL
-    `);
-    await pool.query(`
-      UPDATE providers
-      SET is_active = CASE WHEN subscription_expiry > NOW() THEN true ELSE false END
-      WHERE subscription_expiry IS NOT NULL
-    `);
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS reviews (
-        id SERIAL PRIMARY KEY,
-        provider_id INTEGER REFERENCES providers(id),
-        reviewer_name VARCHAR(100),
-        rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-        comment TEXT,
-        date TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS payments (
-        id SERIAL PRIMARY KEY,
-        provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
-        reference VARCHAR(120) UNIQUE NOT NULL,
-        transaction_reference VARCHAR(120),
-        amount INTEGER NOT NULL,
-        status VARCHAR(30) DEFAULT 'pending',
-        raw_response JSONB,
-        paid_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_provider_id ON payments(provider_id)`);
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS search_logs (
-        id SERIAL PRIMARY KEY,
-        category VARCHAR(100),
-        state VARCHAR(100),
-        query VARCHAR(100),
-        results_count INTEGER,
-        searched_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    console.log('Tables created successfully');
-  } catch (err) {
-    console.error('Table creation error:', err.message);
-  }
+if (!pool) { console.warn(‘Database is not configured. Skipping table creation.’); return; }
+try {
+await pool.query(`CREATE TABLE IF NOT EXISTS providers ( id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, email VARCHAR(100) UNIQUE NOT NULL, phone VARCHAR(20), whatsapp VARCHAR(20), password VARCHAR(255), skill VARCHAR(100), category VARCHAR(100), state VARCHAR(100), lga VARCHAR(100), city VARCHAR(100), bio TEXT, photo TEXT, work_photos JSONB DEFAULT '[]'::jsonb, id_type VARCHAR(100), id_photo TEXT, plan VARCHAR(20) DEFAULT 'free', verified BOOLEAN DEFAULT false, rating DECIMAL(3,2) DEFAULT 0, review_count INTEGER DEFAULT 0, views INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW() )`);
+await pool.query(`ALTER TABLE providers ALTER COLUMN password TYPE VARCHAR(255)`);
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS photo TEXT`);
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS work_photos JSONB DEFAULT '[]'::jsonb`);
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS id_type VARCHAR(100)`);
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS id_photo TEXT`);
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMP`);
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+// New column: tracks when the provider last changed their name
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS name_changed_at TIMESTAMP`);
+await pool.query(`UPDATE providers SET subscription_expiry = NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days' WHERE subscription_expiry IS NULL`);
+await pool.query(`UPDATE providers SET is_active = CASE WHEN subscription_expiry > NOW() THEN true ELSE false END WHERE subscription_expiry IS NOT NULL`);
+await pool.query(`CREATE TABLE IF NOT EXISTS reviews ( id SERIAL PRIMARY KEY, provider_id INTEGER REFERENCES providers(id), reviewer_name VARCHAR(100), rating INTEGER CHECK (rating >= 1 AND rating <= 5), comment TEXT, date TIMESTAMP DEFAULT NOW() )`);
+await pool.query(`CREATE TABLE IF NOT EXISTS payments ( id SERIAL PRIMARY KEY, provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE, reference VARCHAR(120) UNIQUE NOT NULL, transaction_reference VARCHAR(120), amount INTEGER NOT NULL, status VARCHAR(30) DEFAULT 'pending', raw_response JSONB, paid_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW() )`);
+await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_provider_id ON payments(provider_id)`);
+await pool.query(`CREATE TABLE IF NOT EXISTS search_logs ( id SERIAL PRIMARY KEY, category VARCHAR(100), state VARCHAR(100), query VARCHAR(100), results_count INTEGER, searched_at TIMESTAMP DEFAULT NOW() )`);
+console.log(‘Tables created successfully’);
+} catch (err) {
+console.error(‘Table creation error:’, err.message);
+}
 }
 
 async function deactivateExpiredProviders() {
-  if (!pool) return;
-  try {
-    const result = await pool.query(`
-      UPDATE providers SET is_active = false
-      WHERE subscription_expiry < NOW() AND is_active = true
-    `);
-    if (result.rowCount > 0) {
-      console.log(`Subscription cleanup deactivated ${result.rowCount} provider(s).`);
-    }
-  } catch (error) {
-    console.error('Subscription cleanup error:', error.message);
-  }
+if (!pool) return;
+try {
+const result = await pool.query(`UPDATE providers SET is_active = false WHERE subscription_expiry < NOW() AND is_active = true`);
+if (result.rowCount > 0) {
+console.log(`Subscription cleanup deactivated ${result.rowCount} provider(s).`);
+}
+} catch (error) {
+console.error(‘Subscription cleanup error:’, error.message);
+}
 }
 
 createTables().then(() => deactivateExpiredProviders());
 setInterval(() => { deactivateExpiredProviders(); }, CLEANUP_INTERVAL_MS);
 
-// FIXED: now saves photo from registration payload
-app.post('/api/register', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
+app.post(’/api/register’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
 
-  const name = sanitizeText(req.body.name);
-  const email = sanitizeText(req.body.email).toLowerCase();
-  const phone = sanitizeOptionalText(req.body.phone);
-  const whatsapp = sanitizeOptionalText(req.body.whatsapp);
-  const password = sanitizeText(req.body.password);
-  const skill = sanitizeText(req.body.skill);
-  const category = sanitizeOptionalText(req.body.category);
-  const state = sanitizeText(req.body.state);
-  const lga = sanitizeOptionalText(req.body.lga);
-  const city = sanitizeOptionalText(req.body.city);
-  const bio = sanitizeOptionalText(req.body.bio);
-  const idType = sanitizeText(req.body.id_type);
-  const idPhoto = sanitizeText(req.body.id_photo);
-  const workPhotos = parsePhotoArray(req.body.work_photos);
-  // FIXED: accept profile photo from registration
-  const photo = req.body.photo && isImageDataUrl(req.body.photo)
-    ? req.body.photo
-    : null;
+const name = sanitizeText(req.body.name);
+const email = sanitizeText(req.body.email).toLowerCase();
+const phone = sanitizeOptionalText(req.body.phone);
+const whatsapp = sanitizeOptionalText(req.body.whatsapp);
+const password = sanitizeText(req.body.password);
+const skill = sanitizeText(req.body.skill);
+const category = sanitizeOptionalText(req.body.category);
+const state = sanitizeText(req.body.state);
+const lga = sanitizeOptionalText(req.body.lga);
+const city = sanitizeOptionalText(req.body.city);
+const bio = sanitizeOptionalText(req.body.bio);
+const idType = sanitizeText(req.body.id_type);
+const idPhoto = sanitizeText(req.body.id_photo);
+const workPhotos = parsePhotoArray(req.body.work_photos);
+const photo = req.body.photo && isImageDataUrl(req.body.photo)
+? req.body.photo
+: null;
 
-  if (!name || !email || !password || !skill || !state) {
-    return res.status(400).json({ success: false, message: 'Please fill all required fields.' });
-  }
-  if (!email.includes('@')) {
-    return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
-  }
-  const photoError = validateWorkPhotos(workPhotos);
-  if (photoError) return res.status(400).json({ success: false, message: photoError });
-  if (!idType) {
-    return res.status(400).json({ success: false, message: 'Please select the ID type for verification.' });
-  }
-  if (!isImageDataUrl(idPhoto)) {
-    return res.status(400).json({ success: false, message: 'Please upload a valid ID photo for verification.' });
-  }
+if (!name || !email || !password || !skill || !state) {
+return res.status(400).json({ success: false, message: ‘Please fill all required fields.’ });
+}
+if (!email.includes(’@’)) {
+return res.status(400).json({ success: false, message: ‘Please enter a valid email address.’ });
+}
+if (password.length < 6) {
+return res.status(400).json({ success: false, message: ‘Password must be at least 6 characters.’ });
+}
+const photoError = validateWorkPhotos(workPhotos);
+if (photoError) return res.status(400).json({ success: false, message: photoError });
+if (!idType) {
+return res.status(400).json({ success: false, message: ‘Please select the ID type for verification.’ });
+}
+if (!isImageDataUrl(idPhoto)) {
+return res.status(400).json({ success: false, message: ‘Please upload a valid ID photo for verification.’ });
+}
 
-  try {
-    const passwordHash = await hashPassword(password);
-    const result = await pool.query(
-      `INSERT INTO providers (
-        name, email, phone, whatsapp, password, skill, category, state, lga, city, bio,
-        photo, work_photos, id_type, id_photo, subscription_expiry, is_active
-      )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days',true)
-       RETURNING ${publicProviderColumns}`,
-      [name, email, phone, whatsapp, passwordHash, skill, category, state, lga, city, bio,
-       photo, JSON.stringify(workPhotos), idType, idPhoto]
-    );
-    const provider = enrichProvider(result.rows[0]);
-    const token = signToken({ role: 'provider', sub: provider.id }, 60 * 60 * 24 * 14);
-    await sendEmail(email, 'Welcome to HireLocal!', `
-      <h2>Welcome, ${name}!</h2>
-      <p>Your profile is now live on HireLocal for 7 days free.</p>
-      <p>After 7 days, pay ₦1,000 every 14 days to keep your profile visible.</p>
-      <p><a href="https://hirelocal.ng/login.html">Login to your dashboard</a></p>
-    `);
-    res.json({ success: true, provider, token });
-  } catch (err) {
-    console.error('Register error:', err.message);
-    const message = err.code === '23505' ? 'Email already exists.' : 'Unable to create account right now.';
-    res.status(400).json({ success: false, message });
-  }
+try {
+const passwordHash = await hashPassword(password);
+const result = await pool.query(
+`INSERT INTO providers ( name, email, phone, whatsapp, password, skill, category, state, lga, city, bio, photo, work_photos, id_type, id_photo, subscription_expiry, is_active ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days',true) RETURNING ${publicProviderColumns}`,
+[name, email, phone, whatsapp, passwordHash, skill, category, state, lga, city, bio,
+photo, JSON.stringify(workPhotos), idType, idPhoto]
+);
+const provider = enrichProvider(result.rows[0]);
+const token = signToken({ role: ‘provider’, sub: provider.id }, 60 * 60 * 24 * 14);
+await sendEmail(email, ‘Welcome to HireLocal!’, `<h2>Welcome, ${name}!</h2> <p>Your profile is now live on HireLocal for 7 days free.</p> <p>After 7 days, pay ₦1,000 every 14 days to keep your profile visible.</p> <p><a href="https://hirelocal.ng/login.html">Login to your dashboard</a></p>`);
+res.json({ success: true, provider, token });
+} catch (err) {
+console.error(‘Register error:’, err.message);
+const message = err.code === ‘23505’ ? ‘Email already exists.’ : ‘Unable to create account right now.’;
+res.status(400).json({ success: false, message });
+}
 });
 
-app.post('/api/login', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const email = sanitizeText(req.body.email).toLowerCase();
-  const password = sanitizeText(req.body.password);
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Email and password are required.' });
-  }
-  try {
-    const result = await pool.query('SELECT * FROM providers WHERE email = $1', [email]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
-    }
-    const provider = result.rows[0];
-    const matched = await verifyPassword(password, provider.password);
-    if (!matched) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
-    }
-    if (!provider.password.startsWith('scrypt:')) {
-      const upgradedPassword = await hashPassword(password);
-      await pool.query('UPDATE providers SET password = $1 WHERE id = $2', [upgradedPassword, provider.id]);
-    }
-    const safeProviderResult = await pool.query(
-      `SELECT ${publicProviderColumns} FROM providers WHERE id = $1`, [provider.id]
-    );
-    const safeProvider = enrichProvider(safeProviderResult.rows[0]);
-    const token = signToken({ role: 'provider', sub: provider.id }, 60 * 60 * 24 * 14);
-    res.json({ success: true, provider: safeProvider, token });
-  } catch (err) {
-    console.error('Login error:', err.message);
-    res.status(500).json({ success: false, message: 'Server error.' });
-  }
+app.post(’/api/login’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const email = sanitizeText(req.body.email).toLowerCase();
+const password = sanitizeText(req.body.password);
+if (!email || !password) {
+return res.status(400).json({ success: false, message: ‘Email and password are required.’ });
+}
+try {
+const result = await pool.query(‘SELECT * FROM providers WHERE email = $1’, [email]);
+if (result.rows.length === 0) {
+return res.status(401).json({ success: false, message: ‘Invalid email or password.’ });
+}
+const provider = result.rows[0];
+const matched = await verifyPassword(password, provider.password);
+if (!matched) {
+return res.status(401).json({ success: false, message: ‘Invalid email or password.’ });
+}
+if (!provider.password.startsWith(‘scrypt:’)) {
+const upgradedPassword = await hashPassword(password);
+await pool.query(‘UPDATE providers SET password = $1 WHERE id = $2’, [upgradedPassword, provider.id]);
+}
+const safeProviderResult = await pool.query(
+`SELECT ${ownerProviderColumns} FROM providers WHERE id = $1`, [provider.id]
+);
+const safeProvider = enrichProvider(safeProviderResult.rows[0]);
+const token = signToken({ role: ‘provider’, sub: provider.id }, 60 * 60 * 24 * 14);
+res.json({ success: true, provider: safeProvider, token });
+} catch (err) {
+console.error(‘Login error:’, err.message);
+res.status(500).json({ success: false, message: ‘Server error.’ });
+}
 });
 
-app.post('/api/admin/login', (req, res) => {
-  const secret = sanitizeText(req.body.secret);
-  if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
-    return res.status(401).json({ success: false, message: 'Invalid admin secret.' });
-  }
-  const token = signToken({ role: 'admin' }, 60 * 60 * 12);
-  res.json({ success: true, token });
+app.post(’/api/admin/login’, (req, res) => {
+const secret = sanitizeText(req.body.secret);
+if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
+return res.status(401).json({ success: false, message: ‘Invalid admin secret.’ });
+}
+const token = signToken({ role: ‘admin’ }, 60 * 60 * 12);
+res.json({ success: true, token });
 });
 
-app.get('/api/me', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const auth = getProviderAuth(req);
-  if (!auth?.sub) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  try {
-    const result = await pool.query(
-      `SELECT ${ownerProviderColumns} FROM providers WHERE id = $1`, [auth.sub]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Provider not found.' });
-    }
-    res.json({
-      success: true,
-      provider: enrichProvider(result.rows[0]),
-      payment: {
-        amount: SUBSCRIPTION_AMOUNT_NGN,
-        publicKey: korapayPublicKey || null,
-        enabled: Boolean(korapayPublicKey && korapaySecretKey)
-      }
+app.get(’/api/me’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const auth = getProviderAuth(req);
+if (!auth?.sub) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+try {
+const result = await pool.query(
+`SELECT ${ownerProviderColumns} FROM providers WHERE id = $1`, [auth.sub]
+);
+if (result.rows.length === 0) {
+return res.status(404).json({ success: false, message: ‘Provider not found.’ });
+}
+res.json({
+success: true,
+provider: enrichProvider(result.rows[0]),
+payment: {
+amount: SUBSCRIPTION_AMOUNT_NGN,
+publicKey: korapayPublicKey || null,
+enabled: Boolean(korapayPublicKey && korapaySecretKey)
+}
+});
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
+});
+
+// ── PUT /api/provider/me ──────────────────────────────────────────────────────
+// Updates provider profile. Name can only be changed once every 30 days.
+// If the submitted name is different from the current name, we check
+// name_changed_at. If it’s within 30 days, we reject with a clear message
+// telling them how many days are left. If allowed, we update the name and
+// record the current timestamp in name_changed_at.
+app.put(’/api/provider/me’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const auth = getProviderAuth(req);
+if (!auth?.sub) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+
+const newName     = sanitizeText(req.body.name);
+const phone       = sanitizeOptionalText(req.body.phone);
+const whatsapp    = sanitizeOptionalText(req.body.whatsapp);
+const skill       = sanitizeText(req.body.skill);
+const category    = sanitizeOptionalText(req.body.category);
+const state       = sanitizeText(req.body.state);
+const lga         = sanitizeOptionalText(req.body.lga);
+const city        = sanitizeOptionalText(req.body.city);
+const bio         = sanitizeOptionalText(req.body.bio);
+const workPhotos  = parsePhotoArray(req.body.work_photos);
+const photo       = req.body.photo && isImageDataUrl(req.body.photo)
+? req.body.photo
+: undefined;
+
+if (!skill || !state) {
+return res.status(400).json({ success: false, message: ‘Skill and state are required.’ });
+}
+const photoError = validateWorkPhotos(workPhotos);
+if (photoError) return res.status(400).json({ success: false, message: photoError });
+
+try {
+// Fetch current provider record to compare name and check name_changed_at
+const current = await pool.query(
+‘SELECT name, name_changed_at FROM providers WHERE id = $1’,
+[auth.sub]
+);
+if (current.rows.length === 0) {
+return res.status(404).json({ success: false, message: ‘Provider not found.’ });
+}
+
+```
+const currentName      = current.rows[0].name;
+const nameChangedAt    = current.rows[0].name_changed_at;
+const nameIsChanging   = newName && newName !== currentName;
+
+// If they're trying to change their name, enforce the 30-day rule
+if (nameIsChanging) {
+  if (!canChangeName(nameChangedAt)) {
+    const daysLeft = daysUntilNameChange(nameChangedAt);
+    return res.status(400).json({
+      success: false,
+      message: `You can only change your name once every 30 days. You can change it again in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
   }
-});
+}
 
-// FIXED: also update photo on profile update
-app.put('/api/provider/me', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const auth = getProviderAuth(req);
-  if (!auth?.sub) return res.status(401).json({ success: false, message: 'Unauthorized' });
+// Decide the final name to save
+const finalName = nameIsChanging ? newName : currentName;
 
-  const phone = sanitizeOptionalText(req.body.phone);
-  const whatsapp = sanitizeOptionalText(req.body.whatsapp);
-  const skill = sanitizeText(req.body.skill);
-  const category = sanitizeOptionalText(req.body.category);
-  const state = sanitizeText(req.body.state);
-  const lga = sanitizeOptionalText(req.body.lga);
-  const city = sanitizeOptionalText(req.body.city);
-  const bio = sanitizeOptionalText(req.body.bio);
-  const workPhotos = parsePhotoArray(req.body.work_photos);
-  // FIXED: accept updated profile photo
-  const photo = req.body.photo && isImageDataUrl(req.body.photo)
-    ? req.body.photo
-    : undefined;
+// Build the query dynamically based on whether photo and/or name are changing
+let query, params;
 
-  if (!skill || !state) {
-    return res.status(400).json({ success: false, message: 'Skill and state are required.' });
-  }
-  const photoError = validateWorkPhotos(workPhotos);
-  if (photoError) return res.status(400).json({ success: false, message: photoError });
-
-  try {
-    let query, params;
-    if (photo !== undefined) {
-      query = `UPDATE providers
-               SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8,
-                   work_photos=$9::jsonb, photo=$10
-               WHERE id=$11
-               RETURNING ${ownerProviderColumns}`;
-      params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), photo, auth.sub];
-    } else {
-      query = `UPDATE providers
-               SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8,
-                   work_photos=$9::jsonb
-               WHERE id=$10
-               RETURNING ${ownerProviderColumns}`;
-      params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), auth.sub];
-    }
-    const result = await pool.query(query, params);
-    res.json({
-      success: true,
-      provider: enrichProvider(result.rows[0]),
-      message: 'Profile updated successfully.'
-    });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
-  }
-});
-
-app.get('/api/search', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const category = sanitizeText(req.query.category);
-  const state = sanitizeText(req.query.state);
-  const lga = sanitizeText(req.query.lga);
-  const query = sanitizeText(req.query.query);
-  let sql = `
-    SELECT ${publicProviderColumns} FROM providers
-    WHERE verified = true AND is_active = true AND subscription_expiry > NOW()
+if (photo !== undefined && nameIsChanging) {
+  // Update name (and record timestamp), photo, and all other fields
+  query = `
+    UPDATE providers
+    SET name=$1, name_changed_at=NOW(),
+        phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6,
+        lga=$7, city=$8, bio=$9, work_photos=$10::jsonb, photo=$11
+    WHERE id=$12
+    RETURNING ${ownerProviderColumns}
   `;
-  const params = [];
-  let count = 1;
-  if (category) { sql += ` AND (category ILIKE $${count} OR skill ILIKE $${count})`; params.push(`%${category}%`); count++; }
-  if (state) { sql += ` AND state ILIKE $${count++}`; params.push(`%${state}%`); }
-  if (lga) { sql += ` AND lga ILIKE $${count++}`; params.push(`%${lga}%`); }
-  if (query) { sql += ` AND (name ILIKE $${count} OR skill ILIKE $${count} OR bio ILIKE $${count})`; params.push(`%${query}%`); count++; }
-  sql += ' ORDER BY verified DESC, plan DESC, rating DESC, created_at DESC';
-  try {
-    const result = await pool.query(sql, params);
-    try {
-      await pool.query(
-        `INSERT INTO search_logs (category, state, query, results_count) VALUES ($1,$2,$3,$4)`,
-        [category || null, state || null, query || null, result.rows.length]
-      );
-    } catch (logErr) { console.error('Search log error:', logErr.message); }
-    res.json({ success: true, providers: result.rows.map(enrichProvider) });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio,
+            JSON.stringify(workPhotos), photo, auth.sub];
+
+} else if (photo !== undefined && !nameIsChanging) {
+  // Update photo and all other fields, name stays the same
+  query = `
+    UPDATE providers
+    SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5,
+        lga=$6, city=$7, bio=$8, work_photos=$9::jsonb, photo=$10
+    WHERE id=$11
+    RETURNING ${ownerProviderColumns}
+  `;
+  params = [phone, whatsapp, skill, category, state, lga, city, bio,
+            JSON.stringify(workPhotos), photo, auth.sub];
+
+} else if (photo === undefined && nameIsChanging) {
+  // Update name (and record timestamp) and all other fields, no photo change
+  query = `
+    UPDATE providers
+    SET name=$1, name_changed_at=NOW(),
+        phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6,
+        lga=$7, city=$8, bio=$9, work_photos=$10::jsonb
+    WHERE id=$11
+    RETURNING ${ownerProviderColumns}
+  `;
+  params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio,
+            JSON.stringify(workPhotos), auth.sub];
+
+} else {
+  // No name change, no photo change — update everything else
+  query = `
+    UPDATE providers
+    SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5,
+        lga=$6, city=$7, bio=$8, work_photos=$9::jsonb
+    WHERE id=$10
+    RETURNING ${ownerProviderColumns}
+  `;
+  params = [phone, whatsapp, skill, category, state, lga, city, bio,
+            JSON.stringify(workPhotos), auth.sub];
+}
+
+const result = await pool.query(query, params);
+res.json({
+  success: true,
+  provider: enrichProvider(result.rows[0]),
+  message: nameIsChanging
+    ? 'Profile updated. Your name has been changed — you can change it again in 30 days.'
+    : 'Profile updated successfully.'
+});
+```
+
+} catch (err) {
+res.status(400).json({ success: false, message: err.message });
+}
 });
 
-app.get('/api/provider/:id', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const providerId = Number(req.params.id);
-  if (!Number.isInteger(providerId)) {
-    return res.status(400).json({ success: false, message: 'Invalid provider id.' });
-  }
-  try {
-    const providerResult = await pool.query(
-      `UPDATE providers SET views = views + 1 WHERE id = $1 RETURNING ${publicProviderColumns}`,
-      [providerId]
-    );
-    if (providerResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Provider not found.' });
-    }
-    const reviews = await pool.query(
-      `SELECT id, provider_id, reviewer_name, rating, comment, date
-       FROM reviews WHERE provider_id = $1 ORDER BY date DESC`,
-      [providerId]
-    );
-    res.json({
-      success: true,
-      provider: enrichProvider(providerResult.rows[0]),
-      reviews: reviews.rows
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+app.get(’/api/search’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const category = sanitizeText(req.query.category);
+const state = sanitizeText(req.query.state);
+const lga = sanitizeText(req.query.lga);
+const query = sanitizeText(req.query.query);
+let sql = `SELECT ${publicProviderColumns} FROM providers WHERE verified = true AND is_active = true AND subscription_expiry > NOW()`;
+const params = [];
+let count = 1;
+if (category) { sql += ` AND (category ILIKE $${count} OR skill ILIKE $${count})`; params.push(`%${category}%`); count++; }
+if (state) { sql += ` AND state ILIKE $${count++}`; params.push(`%${state}%`); }
+if (lga) { sql += ` AND lga ILIKE $${count++}`; params.push(`%${lga}%`); }
+if (query) { sql += ` AND (name ILIKE $${count} OR skill ILIKE $${count} OR bio ILIKE $${count})`; params.push(`%${query}%`); count++; }
+sql += ’ ORDER BY verified DESC, plan DESC, rating DESC, created_at DESC’;
+try {
+const result = await pool.query(sql, params);
+try {
+await pool.query(
+`INSERT INTO search_logs (category, state, query, results_count) VALUES ($1,$2,$3,$4)`,
+[category || null, state || null, query || null, result.rows.length]
+);
+} catch (logErr) { console.error(‘Search log error:’, logErr.message); }
+res.json({ success: true, providers: result.rows.map(enrichProvider) });
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
 });
 
-app.post('/api/review', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const providerId = Number(req.body.provider_id);
-  const reviewerName = sanitizeText(req.body.reviewer_name);
-  const rating = Number(req.body.rating);
-  const comment = sanitizeOptionalText(req.body.comment);
-  if (!Number.isInteger(providerId) || !reviewerName || !Number.isInteger(rating) || rating < 1 || rating > 5) {
-    return res.status(400).json({ success: false, message: 'Please submit a valid review.' });
-  }
-  try {
-    const providerCheck = await pool.query('SELECT id FROM providers WHERE id = $1', [providerId]);
-    if (providerCheck.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Provider not found.' });
-    }
-    await pool.query(
-      'INSERT INTO reviews (provider_id, reviewer_name, rating, comment) VALUES ($1,$2,$3,$4)',
-      [providerId, reviewerName, rating, comment]
-    );
-    const ratingResult = await pool.query(
-      'SELECT AVG(rating) AS avg, COUNT(*) AS count FROM reviews WHERE provider_id = $1', [providerId]
-    );
-    const avg = Number.parseFloat(ratingResult.rows[0].avg || 0).toFixed(2);
-    const count = Number(ratingResult.rows[0].count || 0);
-    await pool.query('UPDATE providers SET rating=$1, review_count=$2 WHERE id=$3', [avg, count, providerId]);
-    res.json({ success: true, message: 'Review added.' });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
-  }
+app.get(’/api/provider/:id’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const providerId = Number(req.params.id);
+if (!Number.isInteger(providerId)) {
+return res.status(400).json({ success: false, message: ‘Invalid provider id.’ });
+}
+try {
+const providerResult = await pool.query(
+`UPDATE providers SET views = views + 1 WHERE id = $1 RETURNING ${publicProviderColumns}`,
+[providerId]
+);
+if (providerResult.rows.length === 0) {
+return res.status(404).json({ success: false, message: ‘Provider not found.’ });
+}
+const reviews = await pool.query(
+`SELECT id, provider_id, reviewer_name, rating, comment, date FROM reviews WHERE provider_id = $1 ORDER BY date DESC`,
+[providerId]
+);
+res.json({
+success: true,
+provider: enrichProvider(providerResult.rows[0]),
+reviews: reviews.rows
+});
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
 });
 
-app.post('/api/payment/initialize', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  if (!korapaySecretKey || !korapayPublicKey) return sendKorapayUnavailable(res);
-  const auth = getProviderAuth(req);
-  if (!auth?.sub) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  try {
-    const providerResult = await pool.query('SELECT id, name, email FROM providers WHERE id = $1', [auth.sub]);
-    if (!providerResult.rows.length) {
-      return res.status(404).json({ success: false, message: 'Provider not found.' });
-    }
-    const provider = providerResult.rows[0];
-    const paymentReference = buildPaymentReference(provider.id);
-    const { response, payload } = await callKorapay('/charges/initialize', {
-      method: 'POST',
-      body: JSON.stringify({
-        reference: paymentReference,
-        amount: SUBSCRIPTION_AMOUNT_NGN,
-        currency: 'NGN',
-        customer: { name: provider.name, email: provider.email },
-        narration: 'HireLocal subscription renewal',
-        merchant_bears_cost: true,
-        metadata: { providerId: String(provider.id), plan: 'subscription-renewal' }
-      })
-    });
-    if (!response.ok || !payload.status) {
-      return res.status(400).json({ success: false, message: payload.message || 'Unable to initialize Korapay checkout.' });
-    }
-    await pool.query(
-      `INSERT INTO payments (provider_id, reference, amount, status, raw_response)
-       VALUES ($1,$2,$3,$4,$5::jsonb)
-       ON CONFLICT (reference) DO UPDATE SET raw_response = EXCLUDED.raw_response`,
-      [provider.id, paymentReference, SUBSCRIPTION_AMOUNT_NGN, 'initialized', JSON.stringify(payload.data || {})]
-    );
-    res.json({
-      success: true,
-      payment: {
-        amount: SUBSCRIPTION_AMOUNT_NGN,
-        publicKey: korapayPublicKey,
-        merchantReference: paymentReference,
-        checkoutReference: payload.data?.reference || null,
-        checkoutUrl: payload.data?.checkout_url || null,
-        customer: { name: provider.name, email: provider.email }
-      }
-    });
-  } catch (error) {
-    console.error('Payment initialize error:', error.message);
-    res.status(500).json({ success: false, message: 'Unable to initialize payment right now.' });
-  }
+app.post(’/api/review’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const providerId = Number(req.body.provider_id);
+const reviewerName = sanitizeText(req.body.reviewer_name);
+const rating = Number(req.body.rating);
+const comment = sanitizeOptionalText(req.body.comment);
+if (!Number.isInteger(providerId) || !reviewerName || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+return res.status(400).json({ success: false, message: ‘Please submit a valid review.’ });
+}
+try {
+const providerCheck = await pool.query(‘SELECT id FROM providers WHERE id = $1’, [providerId]);
+if (providerCheck.rows.length === 0) {
+return res.status(404).json({ success: false, message: ‘Provider not found.’ });
+}
+await pool.query(
+‘INSERT INTO reviews (provider_id, reviewer_name, rating, comment) VALUES ($1,$2,$3,$4)’,
+[providerId, reviewerName, rating, comment]
+);
+const ratingResult = await pool.query(
+‘SELECT AVG(rating) AS avg, COUNT(*) AS count FROM reviews WHERE provider_id = $1’, [providerId]
+);
+const avg = Number.parseFloat(ratingResult.rows[0].avg || 0).toFixed(2);
+const count = Number(ratingResult.rows[0].count || 0);
+await pool.query(‘UPDATE providers SET rating=$1, review_count=$2 WHERE id=$3’, [avg, count, providerId]);
+res.json({ success: true, message: ‘Review added.’ });
+} catch (err) {
+res.status(400).json({ success: false, message: err.message });
+}
 });
 
-app.post('/api/payment/verify', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  if (!korapaySecretKey || !korapayPublicKey) return sendKorapayUnavailable(res);
-  const auth = getProviderAuth(req);
-  if (!auth?.sub) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  const transactionReference = sanitizeText(req.body.reference);
-  const paymentReference = sanitizeText(req.body.payment_reference);
-  if (!transactionReference) {
-    return res.status(400).json({ success: false, message: 'Payment reference is required.' });
-  }
-  try {
-    const paymentLookup = await pool.query(
-      `SELECT * FROM payments WHERE provider_id=$1 AND (reference=$2 OR reference=$3) ORDER BY created_at DESC LIMIT 1`,
-      [auth.sub, paymentReference || transactionReference, transactionReference]
-    );
-    if (!paymentLookup.rows.length) {
-      return res.status(404).json({ success: false, message: 'Payment session not found.' });
-    }
-    const paymentRecord = paymentLookup.rows[0];
-    if (paymentRecord.status === 'success') {
-      const providerResult = await pool.query(`SELECT ${ownerProviderColumns} FROM providers WHERE id=$1`, [auth.sub]);
-      return res.json({ success: true, message: 'Payment was already verified.', provider: enrichProvider(providerResult.rows[0]) });
-    }
-    const { response, payload } = await callKorapay(`/charges/${encodeURIComponent(transactionReference)}`, { method: 'GET' });
-    if (!response.ok || !payload.status) {
-      await pool.query(
-        `UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`,
-        [transactionReference, 'failed', JSON.stringify(payload), paymentRecord.id]
-      );
-      return res.status(400).json({ success: false, message: payload.message || 'Unable to verify payment.' });
-    }
-    const korapayData = payload.data || {};
-    const korapayStatus = String(korapayData.status || korapayData.transaction_status || '').toLowerCase();
-    const amountPaid = Number(korapayData.amount || 0);
-    const merchantReference = sanitizeText(korapayData.payment_reference) || paymentRecord.reference;
-    if (merchantReference !== paymentRecord.reference) {
-      return res.status(400).json({ success: false, message: 'Payment reference mismatch.' });
-    }
-    if (korapayStatus !== 'success' || amountPaid < SUBSCRIPTION_AMOUNT_NGN) {
-      await pool.query(
-        `UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`,
-        [transactionReference, 'failed', JSON.stringify(payload), paymentRecord.id]
-      );
-      return res.status(400).json({ success: false, message: 'Payment is not yet successful.' });
-    }
-    await pool.query('BEGIN');
-    await pool.query(
-      `UPDATE payments SET transaction_reference=$1, status='success', raw_response=$2::jsonb, paid_at=NOW() WHERE id=$3`,
-      [transactionReference, JSON.stringify(payload), paymentRecord.id]
-    );
-    const providerUpdate = await pool.query(
-      `UPDATE providers
-       SET subscription_expiry = GREATEST(COALESCE(subscription_expiry, NOW()), NOW()) + INTERVAL '${SUBSCRIPTION_RENEWAL_DAYS} days',
-           is_active = true
-       WHERE id=$1 RETURNING ${ownerProviderColumns}`,
-      [auth.sub]
-    );
-    await pool.query('COMMIT');
-    res.json({ success: true, message: 'Subscription renewed successfully.', provider: enrichProvider(providerUpdate.rows[0]) });
-  } catch (error) {
-    try { await pool.query('ROLLBACK'); } catch (e) { console.error('Rollback error:', e.message); }
-    console.error('Payment verify error:', error.message);
-    res.status(500).json({ success: false, message: 'Unable to verify payment right now.' });
-  }
+app.post(’/api/payment/initialize’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+if (!korapaySecretKey || !korapayPublicKey) return sendKorapayUnavailable(res);
+const auth = getProviderAuth(req);
+if (!auth?.sub) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+try {
+const providerResult = await pool.query(‘SELECT id, name, email FROM providers WHERE id = $1’, [auth.sub]);
+if (!providerResult.rows.length) {
+return res.status(404).json({ success: false, message: ‘Provider not found.’ });
+}
+const provider = providerResult.rows[0];
+const paymentReference = buildPaymentReference(provider.id);
+const { response, payload } = await callKorapay(’/charges/initialize’, {
+method: ‘POST’,
+body: JSON.stringify({
+reference: paymentReference,
+amount: SUBSCRIPTION_AMOUNT_NGN,
+currency: ‘NGN’,
+customer: { name: provider.name, email: provider.email },
+narration: ‘HireLocal subscription renewal’,
+merchant_bears_cost: true,
+metadata: { providerId: String(provider.id), plan: ‘subscription-renewal’ }
+})
+});
+if (!response.ok || !payload.status) {
+return res.status(400).json({ success: false, message: payload.message || ‘Unable to initialize Korapay checkout.’ });
+}
+await pool.query(
+`INSERT INTO payments (provider_id, reference, amount, status, raw_response) VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT (reference) DO UPDATE SET raw_response = EXCLUDED.raw_response`,
+[provider.id, paymentReference, SUBSCRIPTION_AMOUNT_NGN, ‘initialized’, JSON.stringify(payload.data || {})]
+);
+res.json({
+success: true,
+payment: {
+amount: SUBSCRIPTION_AMOUNT_NGN,
+publicKey: korapayPublicKey,
+merchantReference: paymentReference,
+checkoutReference: payload.data?.reference || null,
+checkoutUrl: payload.data?.checkout_url || null,
+customer: { name: provider.name, email: provider.email }
+}
+});
+} catch (error) {
+console.error(‘Payment initialize error:’, error.message);
+res.status(500).json({ success: false, message: ‘Unable to initialize payment right now.’ });
+}
 });
 
-app.get('/api/admin/providers', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const adminAuth = getAdminAuth(req);
-  if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  try {
-    const result = await pool.query(`SELECT ${adminProviderColumns} FROM providers ORDER BY created_at DESC`);
-    res.json({ success: true, providers: result.rows.map(enrichProvider) });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+app.post(’/api/payment/verify’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+if (!korapaySecretKey || !korapayPublicKey) return sendKorapayUnavailable(res);
+const auth = getProviderAuth(req);
+if (!auth?.sub) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+const transactionReference = sanitizeText(req.body.reference);
+const paymentReference = sanitizeText(req.body.payment_reference);
+if (!transactionReference) {
+return res.status(400).json({ success: false, message: ‘Payment reference is required.’ });
+}
+try {
+const paymentLookup = await pool.query(
+`SELECT * FROM payments WHERE provider_id=$1 AND (reference=$2 OR reference=$3) ORDER BY created_at DESC LIMIT 1`,
+[auth.sub, paymentReference || transactionReference, transactionReference]
+);
+if (!paymentLookup.rows.length) {
+return res.status(404).json({ success: false, message: ‘Payment session not found.’ });
+}
+const paymentRecord = paymentLookup.rows[0];
+if (paymentRecord.status === ‘success’) {
+const providerResult = await pool.query(`SELECT ${ownerProviderColumns} FROM providers WHERE id=$1`, [auth.sub]);
+return res.json({ success: true, message: ‘Payment was already verified.’, provider: enrichProvider(providerResult.rows[0]) });
+}
+const { response, payload } = await callKorapay(`/charges/${encodeURIComponent(transactionReference)}`, { method: ‘GET’ });
+if (!response.ok || !payload.status) {
+await pool.query(
+`UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`,
+[transactionReference, ‘failed’, JSON.stringify(payload), paymentRecord.id]
+);
+return res.status(400).json({ success: false, message: payload.message || ‘Unable to verify payment.’ });
+}
+const korapayData = payload.data || {};
+const korapayStatus = String(korapayData.status || korapayData.transaction_status || ‘’).toLowerCase();
+const amountPaid = Number(korapayData.amount || 0);
+const merchantReference = sanitizeText(korapayData.payment_reference) || paymentRecord.reference;
+if (merchantReference !== paymentRecord.reference) {
+return res.status(400).json({ success: false, message: ‘Payment reference mismatch.’ });
+}
+if (korapayStatus !== ‘success’ || amountPaid < SUBSCRIPTION_AMOUNT_NGN) {
+await pool.query(
+`UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`,
+[transactionReference, ‘failed’, JSON.stringify(payload), paymentRecord.id]
+);
+return res.status(400).json({ success: false, message: ‘Payment is not yet successful.’ });
+}
+await pool.query(‘BEGIN’);
+await pool.query(
+`UPDATE payments SET transaction_reference=$1, status='success', raw_response=$2::jsonb, paid_at=NOW() WHERE id=$3`,
+[transactionReference, JSON.stringify(payload), paymentRecord.id]
+);
+const providerUpdate = await pool.query(
+`UPDATE providers SET subscription_expiry = GREATEST(COALESCE(subscription_expiry, NOW()), NOW()) + INTERVAL '${SUBSCRIPTION_RENEWAL_DAYS} days', is_active = true WHERE id=$1 RETURNING ${ownerProviderColumns}`,
+[auth.sub]
+);
+await pool.query(‘COMMIT’);
+res.json({ success: true, message: ‘Subscription renewed successfully.’, provider: enrichProvider(providerUpdate.rows[0]) });
+} catch (error) {
+try { await pool.query(‘ROLLBACK’); } catch (e) { console.error(‘Rollback error:’, e.message); }
+console.error(‘Payment verify error:’, error.message);
+res.status(500).json({ success: false, message: ‘Unable to verify payment right now.’ });
+}
 });
 
-app.post('/api/admin/verify/:id', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const adminAuth = getAdminAuth(req);
-  const providerId = Number(req.params.id);
-  if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  if (!Number.isInteger(providerId)) return res.status(400).json({ success: false, message: 'Invalid provider id.' });
-  try {
-    const result = await pool.query(
-      `UPDATE providers SET verified=true WHERE id=$1 RETURNING ${adminProviderColumns}`, [providerId]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Provider not found.' });
-    res.json({ success: true, message: 'Provider verified.', provider: enrichProvider(result.rows[0]) });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+app.get(’/api/admin/providers’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const adminAuth = getAdminAuth(req);
+if (!adminAuth) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+try {
+const result = await pool.query(`SELECT ${adminProviderColumns} FROM providers ORDER BY created_at DESC`);
+res.json({ success: true, providers: result.rows.map(enrichProvider) });
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
 });
 
-app.get('/api/admin/searches', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const adminAuth = getAdminAuth(req);
-  if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  try {
-    const result = await pool.query(
-      `SELECT category, state, query, results_count, searched_at FROM search_logs ORDER BY searched_at DESC LIMIT 200`
-    );
-    res.json({ success: true, searches: result.rows });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+app.post(’/api/admin/verify/:id’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const adminAuth = getAdminAuth(req);
+const providerId = Number(req.params.id);
+if (!adminAuth) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+if (!Number.isInteger(providerId)) return res.status(400).json({ success: false, message: ‘Invalid provider id.’ });
+try {
+const result = await pool.query(
+`UPDATE providers SET verified=true WHERE id=$1 RETURNING ${adminProviderColumns}`, [providerId]
+);
+if (result.rows.length === 0) return res.status(404).json({ success: false, message: ‘Provider not found.’ });
+res.json({ success: true, message: ‘Provider verified.’, provider: enrichProvider(result.rows[0]) });
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
 });
 
-app.delete('/api/admin/delete/:id', async (req, res) => {
-  if (!pool) return sendDatabaseUnavailable(res);
-  const adminAuth = getAdminAuth(req);
-  if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  const providerId = Number(req.params.id);
-  if (!Number.isInteger(providerId)) return res.status(400).json({ success: false, message: 'Invalid provider id.' });
-  try {
-    await pool.query('DELETE FROM reviews WHERE provider_id=$1', [providerId]);
-    await pool.query('DELETE FROM payments WHERE provider_id=$1', [providerId]);
-    const result = await pool.query('DELETE FROM providers WHERE id=$1 RETURNING id', [providerId]);
-    if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Provider not found.' });
-    res.json({ success: true, message: 'Provider deleted.' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+app.get(’/api/admin/searches’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const adminAuth = getAdminAuth(req);
+if (!adminAuth) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+try {
+const result = await pool.query(
+`SELECT category, state, query, results_count, searched_at FROM search_logs ORDER BY searched_at DESC LIMIT 200`
+);
+res.json({ success: true, searches: result.rows });
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
+});
+
+app.delete(’/api/admin/delete/:id’, async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const adminAuth = getAdminAuth(req);
+if (!adminAuth) return res.status(401).json({ success: false, message: ‘Unauthorized’ });
+const providerId = Number(req.params.id);
+if (!Number.isInteger(providerId)) return res.status(400).json({ success: false, message: ‘Invalid provider id.’ });
+try {
+await pool.query(‘DELETE FROM reviews WHERE provider_id=$1’, [providerId]);
+await pool.query(‘DELETE FROM payments WHERE provider_id=$1’, [providerId]);
+const result = await pool.query(‘DELETE FROM providers WHERE id=$1 RETURNING id’, [providerId]);
+if (result.rows.length === 0) return res.status(404).json({ success: false, message: ‘Provider not found.’ });
+res.json({ success: true, message: ‘Provider deleted.’ });
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`HireLocal server running on port ${PORT}`);
-  if (!hasDatabase) console.log('Set DATABASE_URL in .env to enable all features.');
-  if (!korapaySecretKey || !korapayPublicKey) console.log('Set KORAPAY keys in .env to enable payments.');
+app.listen(PORT, ‘0.0.0.0’, () => {
+console.log(`HireLocal server running on port ${PORT}`);
+if (!hasDatabase) console.log(‘Set DATABASE_URL in .env to enable all features.’);
+if (!korapaySecretKey || !korapayPublicKey) console.log(‘Set KORAPAY keys in .env to enable payments.’);
 });
