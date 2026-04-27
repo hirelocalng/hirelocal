@@ -295,6 +295,7 @@ const enrichProvider = (provider) => ({
   ...provider,
   subscription: getSubscriptionSnapshot(provider)
 });
+
 async function sendEmail(to, subject, html) {
   try {
     await resend.emails.send({
@@ -307,6 +308,7 @@ async function sendEmail(to, subject, html) {
     console.error('Email error:', err.message);
   }
 }
+
 const buildPaymentReference = (providerId) =>
   `HL-SUB-${providerId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
@@ -449,7 +451,6 @@ async function createTables() {
       )
     `);
 
-
     console.log('Tables created successfully');
   } catch (err) {
     console.error('Table creation error:', err.message);
@@ -497,6 +498,7 @@ app.post('/api/register', async (req, res) => {
   const idType = sanitizeText(req.body.id_type);
   const idPhoto = sanitizeText(req.body.id_photo);
   const workPhotos = parsePhotoArray(req.body.work_photos);
+  const profilePhoto = sanitizeOptionalText(req.body.photo);
 
   if (!name || !email || !password || !skill || !state) {
     return res.status(400).json({ success: false, message: 'Please fill all required fields.' });
@@ -528,10 +530,10 @@ app.post('/api/register', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO providers (
         name, email, phone, whatsapp, password, skill, category, state, lga, city, bio,
-        work_photos, id_type, id_photo, subscription_expiry, is_active
+        work_photos, id_type, id_photo, photo, subscription_expiry, is_active
       )
        VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days',true
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days',true
       )
        RETURNING ${publicProviderColumns}`,
       [
@@ -548,7 +550,8 @@ app.post('/api/register', async (req, res) => {
         bio,
         JSON.stringify(workPhotos),
         idType,
-        idPhoto
+        idPhoto,
+        profilePhoto
       ]
     );
 
@@ -669,6 +672,7 @@ app.put('/api/provider/me', async (req, res) => {
   const city = sanitizeOptionalText(req.body.city);
   const bio = sanitizeOptionalText(req.body.bio);
   const workPhotos = parsePhotoArray(req.body.work_photos);
+  const photo = sanitizeOptionalText(req.body.photo);
 
   if (!skill || !state) {
     return res.status(400).json({ success: false, message: 'Skill and state are required.' });
@@ -682,8 +686,8 @@ app.put('/api/provider/me', async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE providers
-       SET phone = $1, whatsapp = $2, skill = $3, category = $4, state = $5, lga = $6, city = $7, bio = $8, work_photos = $9::jsonb
-       WHERE id = $10
+       SET phone = $1, whatsapp = $2, skill = $3, category = $4, state = $5, lga = $6, city = $7, bio = $8, work_photos = $9::jsonb, photo = COALESCE($10, photo)
+       WHERE id = $11
        RETURNING ${ownerProviderColumns}`,
       [
         phone,
@@ -695,6 +699,7 @@ app.put('/api/provider/me', async (req, res) => {
         city,
         bio,
         JSON.stringify(workPhotos),
+        photo,
         auth.sub
       ]
     );
@@ -1122,6 +1127,7 @@ app.post('/api/admin/verify/:id', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 app.get('/api/admin/searches', async (req, res) => {
   if (!pool) return sendDatabaseUnavailable(res);
 
@@ -1142,6 +1148,7 @@ app.get('/api/admin/searches', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 app.delete('/api/admin/delete/:id', async (req, res) => {
   if (!pool) return sendDatabaseUnavailable(res);
 
@@ -1169,6 +1176,7 @@ app.delete('/api/admin/delete/:id', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`HireLocal server running on port ${PORT}`);
