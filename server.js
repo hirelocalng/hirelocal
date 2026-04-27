@@ -1,6 +1,14 @@
 require('dotenv').config();
 const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Ensure Resend is initialized only once
+let resend;
+if (!resend) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    throw new Error("Missing RESEND_API_KEY in environment variables. Add it to your .env file.");
+  }
+  resend = new Resend(resendApiKey);
+}
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
