@@ -436,7 +436,7 @@ if (page === "home") {
       featuredProviders.innerHTML = providers.map((provider) => `
         <article class="profile-preview">
           <div class="profile-preview-top">
-            ${provider.photo ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" class="profile-preview-avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">` : `<span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase()})</span>`}
+            ${provider.photo ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" class="profile-preview-avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">` : `<span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</span>`}
             <div>
               <h3>${escapeHtml(provider.name)}</h3>
               <p>${escapeHtml(formatLocation(provider) || "Location pending")}</p>
@@ -526,22 +526,6 @@ if (page === "profile") {
     window.profilePictureUploader = profilePictureUploader;
   }
 
-  // Function to check if logged-in user owns this profile
-  const checkProfileOwner = async (profileId) => {
-    try {
-      const token = getStoredProviderToken();
-      if (!token) return false;
-      
-      const { data } = await requestJson("/api/me", {}, "provider");
-      if (data.success && data.provider && data.provider.id == profileId) {
-        return true;
-      }
-    } catch (error) {
-      console.error('Error checking profile owner:', error);
-    }
-    return false;
-  };
-
   const loadProfile = async () => {
     if (!providerId) {
       if (reviewsList) reviewsList.innerHTML = `<div class="empty-state">No provider selected.</div>`;
@@ -558,15 +542,6 @@ if (page === "profile") {
       const { provider, reviews } = data;
       const location = formatLocation(provider) || "Location not set";
 
-      // Check if viewer is the profile owner
-      const isOwner = await checkProfileOwner(provider.id);
-      
-      // Show/hide edit form based on ownership
-      const editSection = document.getElementById('edit-profile-owner-only');
-      if (editSection) {
-        editSection.style.display = isOwner ? 'block' : 'none';
-      }
-
       // Display profile picture
       const profileImg = document.getElementById('profile-photo-img');
       const profilePlaceholder = document.getElementById('profile-photo-placeholder');
@@ -582,7 +557,7 @@ if (page === "profile") {
       if (profile) {
         profile.innerHTML = `
           <div class="profile-photo-container">
-            ${provider.photo ? `<img id="profile-photo-img-display" src="${provider.photo}" alt="Profile Picture" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />` : `<div id="profile-photo-placeholder-display" class="avatar-placeholder">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase()}</div>`}
+            ${provider.photo ? `<img id="profile-photo-img-display" src="${provider.photo}" alt="Profile Picture" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />` : `<div id="profile-photo-placeholder-display" class="avatar-placeholder">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`}
           </div>
           <div class="profile-main-copy">
             <p class="eyebrow">${provider.verified ? "Verified provider" : "Provider profile"}</p>
@@ -613,8 +588,8 @@ if (page === "profile") {
         contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct contact details available yet.</div>`;
       }
 
-      // Populate edit form (only if owner)
-      if (isOwner && editProfileForm) {
+      // Populate edit form
+      if (editProfileForm) {
         editProfileForm.elements.namedItem("name").value = provider.name || "";
         editProfileForm.elements.namedItem("skill").value = provider.skill || "";
         if (provider.photo && editProfilePreview) {
@@ -672,6 +647,7 @@ if (page === "profile") {
 
       if (data.success) {
         setStatus(editProfileForm, data.message || "Profile updated successfully.", "success");
+        // Reload profile data
         setTimeout(() => loadProfile(), 1500);
       } else {
         setStatus(editProfileForm, data.message || "Unable to update profile.", "error");
@@ -824,7 +800,7 @@ if (page === "dashboard") {
       // Display profile picture in dashboard summary
       const profilePhotoHtml = provider.photo 
         ? `<img src="${provider.photo}" alt="Profile" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-bottom:12px;">`
-        : `<div class="avatar-placeholder" style="width:60px;height:60px;border-radius:50%;margin-bottom:12px;">${escapeHtml((provider.name || "U").slice(0,2).toUpperCase()}</div>`;
+        : `<div class="avatar-placeholder" style="width:60px;height:60px;border-radius:50%;margin-bottom:12px;">${escapeHtml((provider.name || "U").slice(0,2).toUpperCase())}</div>`;
 
       panel.innerHTML = `
         ${profilePhotoHtml}
@@ -1047,7 +1023,7 @@ if (page === "admin") {
       <article class="result-card admin-card">
         <div class="result-card-head">
           <div class="result-card-head-left">
-            ${provider.photo ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-right:12px;">` : `<div style="width:48px;height:48px;border-radius:50%;background:#C6A43F;display:flex;align-items:center;justify-content:center;margin-right:12px;">${escapeHtml((provider.name || "HL").slice(0,2).toUpperCase()}</div>`}
+            ${provider.photo ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-right:12px;">` : `<div style="width:48px;height:48px;border-radius:50%;background:#C6A43F;display:flex;align-items:center;justify-content:center;margin-right:12px;">${escapeHtml((provider.name || "HL").slice(0,2).toUpperCase())}</div>`}
             <div>
               <p class="eyebrow">${provider.verified ? "Verified provider" : "Awaiting review"}</p>
               <h3>${escapeHtml(provider.name)}</h3>

@@ -3,152 +3,176 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Provider Profile | HireLocal</title>
+  <title>Provider Dashboard | HireLocal</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
-<body data-page="profile">
+<body data-page="dashboard">
   <div class="page-shell">
     <header class="site-header">
       <div class="container nav">
         <a href="/" class="logo">HireLocal</a>
         <nav class="nav-links">
-          <a href="/search.html">Back to Search</a>
-          <a href="/register.html">Become a Provider</a>
+          <a href="/search.html">Browse Providers</a>
+          <a href="/login.html" data-action="logout">Logout</a>
         </nav>
       </div>
     </header>
 
     <main>
-      <section class="section profile-page">
+      <section class="section dashboard-page">
         <div class="container">
-          <section class="profile-showcase" id="provider-profile">
-            <div class="profile-photo-container">
-              <img id="profile-photo-img" src="" alt="Profile Picture" style="display: none; width: 80px; height: 80px; border-radius: 50%; object-fit: cover;" />
-              <div id="profile-photo-placeholder" class="avatar-placeholder">HL</div>
+          <div class="dashboard-hero">
+            <div>
+              <p class="eyebrow">Provider dashboard</p>
+              <h1>Your business snapshot</h1>
+              <p>Keep an eye on how your public profile is performing and whether your account is verified.</p>
             </div>
-            <div class="profile-main-copy">
-              <p class="eyebrow">Provider profile</p>
-              <h1>Provider Name</h1>
-              <p class="profile-meta">Skill • Category • City, State</p>
-              <p class="profile-bio">Provider details will load here from your API.</p>
-            </div>
-          </section>
+            <div class="dashboard-chip" id="dashboard-badge">Your profile overview</div>
+          </div>
 
-          <section class="profile-grid">
-            <div class="profile-column">
-              <div class="glass-card stat-panel">
+          <div class="stats-strip" id="dashboard-stats">
+            <article class="metric-card">
+              <span class="mini-label">Plan</span>
+              <strong id="dash-plan">Free</strong>
+            </article>
+            <article class="metric-card">
+              <span class="mini-label">Verification</span>
+              <strong id="dash-verified">Pending</strong>
+            </article>
+            <article class="metric-card">
+              <span class="mini-label">Profile Views</span>
+              <strong id="dash-views">0</strong>
+            </article>
+            <article class="metric-card">
+              <span class="mini-label">Reviews</span>
+              <strong id="dash-reviews">0</strong>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="glass-card profile-summary" id="dashboard-profile">
+              <h2>Profile Summary</h2>
+              <p>Your provider details will appear here after login.</p>
+            </section>
+
+            <aside class="dashboard-side-column">
+              <section class="glass-card subscription-card" id="subscription-panel">
                 <div class="panel-head">
                   <div>
-                    <p class="eyebrow">Contact and trust</p>
-                    <h2>Client-ready details</h2>
+                    <p class="eyebrow">Subscription</p>
+                    <h2>Visibility plan</h2>
                   </div>
+                  <span class="pill warm" id="subscription-status">Loading</span>
                 </div>
-                <div class="stats-grid">
-                  <div><strong>Phone</strong><span id="provider-phone">-</span></div>
-                  <div><strong>WhatsApp</strong><span id="provider-whatsapp">-</span></div>
-                  <div><strong>Rating</strong><span id="provider-rating">0.00</span></div>
-                  <div><strong>Views</strong><span id="provider-views">0</span></div>
+                <div class="subscription-meta-grid">
+                  <article class="subscription-meta-card">
+                    <span class="mini-label">Expiry Date</span>
+                    <strong id="subscription-expiry">-</strong>
+                  </article>
+                  <article class="subscription-meta-card">
+                    <span class="mini-label">Days Remaining</span>
+                    <strong id="subscription-days">0</strong>
+                  </article>
                 </div>
-                <div class="contact-cta-row" id="provider-contact-links"></div>
-              </div>
+                <p class="subscription-note" id="subscription-note">Your current visibility status will appear here.</p>
+                <div class="subscription-warning hidden" id="subscription-warning" aria-live="polite"></div>
+                <button type="button" class="button primary full-width-button" id="subscription-renew-button">
+                  Renew Now - ₦1,000
+                </button>
+                <div class="status-box" id="subscription-payment-status" aria-live="polite"></div>
+              </section>
 
-              <div class="glass-card reviews-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Portfolio</p>
-                    <h2>Work photo gallery</h2>
-                  </div>
-                </div>
-                <div id="provider-gallery" class="photo-gallery"></div>
-              </div>
-
-              <div class="glass-card reviews-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Reviews</p>
-                    <h2>What clients are saying</h2>
-                  </div>
-                </div>
-                <div id="reviews-list" class="stack-grid"></div>
-              </div>
-            </div>
-
-            <aside class="profile-side">
-              <div class="glass-card review-form-card">
-                <p class="eyebrow">Leave feedback</p>
-                <h2>Add a review</h2>
-                <form id="review-form" class="form-grid">
-                  <input type="hidden" name="provider_id" />
-                  <label>
-                    <span>Your Name</span>
-                    <input type="text" name="reviewer_name" required />
-                  </label>
-                  <label>
-                    <span>Rating</span>
-                    <select name="rating" required>
-                      <option value="">Select</option>
-                      <option value="5">5</option>
-                      <option value="4">4</option>
-                      <option value="3">3</option>
-                      <option value="2">2</option>
-                      <option value="1">1</option>
-                    </select>
-                  </label>
-                  <label class="full-width">
-                    <span>Comment</span>
-                    <textarea name="comment" rows="5" required></textarea>
-                  </label>
-                  <button type="submit" class="button primary full-width-button">Submit Review</button>
-                </form>
-              </div>
-
-              <!-- Edit Profile Section - Only visible to the profile owner -->
-              <div id="edit-profile-owner-only" style="display: none;">
-                <section class="glass-card edit-profile">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">Edit Profile</p>
-                      <h2>Update your details</h2>
-                    </div>
-                  </div>
-                  <form id="edit-profile-form" class="form-grid">
-                    <label>
-                      <span>Full Name</span>
-                      <input type="text" name="name" required />
-                    </label>
-                    <label>
-                      <span>Skill</span>
-                      <input type="text" name="skill" required />
-                    </label>
-                    <label>
-                      <span>Profile Picture</span>
-                      <input type="file" name="profile_picture" accept="image/*" />
-                      <small class="input-help">Upload a profile picture to update your public profile.</small>
-                    </label>
-                    <div class="full-width single-photo-preview" id="edit-profile-preview"></div>
-                    <button type="submit" class="button primary full-width-button">Save Changes</button>
-                  </form>
-                </section>
-              </div>
+              <section class="glass-card side-card">
+                <p class="eyebrow">Growth checklist</p>
+                <h2>How to improve your profile</h2>
+                <ul class="plain-list">
+                  <li>Write a strong bio that describes your best services.</li>
+                  <li>Use a clear phone number and WhatsApp contact.</li>
+                  <li>Ask happy clients to leave reviews on your profile.</li>
+                </ul>
+              </section>
             </aside>
+          </div>
+
+          <section class="dashboard-grid secondary-grid">
+            <section class="glass-card">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Your work photos</p>
+                  <h2>Portfolio gallery</h2>
+                </div>
+              </div>
+              <div id="dashboard-gallery" class="photo-gallery"></div>
+            </section>
+
+            <section class="glass-card">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Update profile</p>
+                  <h2>Edit your listing</h2>
+                </div>
+              </div>
+              <form id="dashboard-update-form" class="form-grid">
+                <label>
+                  <span>Phone Number</span>
+                  <input type="tel" name="phone" />
+                </label>
+                <label>
+                  <span>WhatsApp Number</span>
+                  <input type="tel" name="whatsapp" />
+                </label>
+                <label>
+                  <span>Skill</span>
+                  <input type="text" name="skill" required />
+                </label>
+                <label>
+                  <span>Category</span>
+                  <input type="text" name="category" />
+                </label>
+                <label>
+                  <span>State</span>
+                  <input type="text" name="state" required />
+                </label>
+                <label>
+                  <span>LGA</span>
+                  <input type="text" name="lga" />
+                </label>
+                <label>
+                  <span>City / Area</span>
+                  <input type="text" name="city" />
+                </label>
+                <label class="full-width">
+                  <span>Short Bio</span>
+                  <textarea name="bio" rows="4"></textarea>
+                </label>
+                <label class="full-width">
+                  <span>Update Work Photos</span>
+                  <input type="file" name="work_photo_files" accept="image/*" multiple />
+                  <small class="input-help">Leave this unchanged to keep your current 3 to 5 photos. Uploading new photos will replace the current gallery.</small>
+                </label>
+                <div class="full-width photo-preview-grid" id="dashboard-work-preview"></div>
+                <button type="submit" class="button primary full-width-button">Save Changes</button>
+              </form>
+            </section>
           </section>
         </div>
       </section>
     </main>
   </div>
 
-  <script src="/js/main.js"></script>
-  <footer class="site-footer">
-    <div class="container">
-      <div class="footer-row">
-        <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
-        <div class="footer-links">
-          <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
-          <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
-          <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
-        </div>
+  <script src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js"></script>
+  <script src="/js/main.js"></script><footer class="site-footer">
+  <div class="container">
+    <div class="footer-row">
+      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
       </div>
     </div>
-  </footer>
+  </div>
+</footer>
+
 </body>
 </html>
