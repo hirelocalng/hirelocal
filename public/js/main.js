@@ -1008,6 +1008,27 @@ if (page === "register") {
       setStatus(form, "Unable to create account right now.", "error");
     }
   });
+
+  const profileInput = document.querySelector('input[name="profile_picture"]');
+  const profilePreview = document.getElementById("register-profile-preview");
+
+  if (profileInput && profilePreview) {
+    profileInput.addEventListener("change", async () => {
+      try {
+        const [dataUrl] = await readFilesAsDataUrls(profileInput.files);
+        if (dataUrl) {
+          profilePreview.innerHTML = `
+            <article class="photo-tile single">
+              <img src="${dataUrl}" alt="Profile Picture Preview" />
+              <span>Profile Picture</span>
+            </article>
+          `;
+        }
+      } catch (error) {
+        profilePreview.innerHTML = `<div class="empty-state">Unable to preview profile picture.</div>`;
+      }
+    });
+  }
 }
 
 if (page === "login") {
