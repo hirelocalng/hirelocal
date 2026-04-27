@@ -86,8 +86,10 @@
                 <p class="eyebrow">Growth checklist</p>
                 <h2>How to improve your profile</h2>
                 <ul class="plain-list">
+                  <li>Add a profile picture to build trust with clients.</li>
                   <li>Write a strong bio that describes your best services.</li>
                   <li>Use a clear phone number and WhatsApp contact.</li>
+                  <li>Upload 3-5 work photos to showcase your skills.</li>
                   <li>Ask happy clients to leave reviews on your profile.</li>
                 </ul>
               </section>
@@ -113,6 +115,15 @@
                 </div>
               </div>
               <form id="dashboard-update-form" class="form-grid">
+                <!-- ========== ADDED: PROFILE PICTURE UPLOAD ========== -->
+                <label class="full-width">
+                  <span>Profile Picture</span>
+                  <input type="file" name="profile_picture" accept="image/*" />
+                  <small class="input-help">Upload a profile picture to appear on your public profile.</small>
+                </label>
+                <div class="full-width single-photo-preview" id="dashboard-photo-preview"></div>
+                <!-- ========== END ADDED SECTION ========== -->
+
                 <label>
                   <span>Phone Number</span>
                   <input type="tel" name="phone" />
@@ -161,18 +172,18 @@
   </div>
 
   <script src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js"></script>
-  <script src="/js/main.js"></script><footer class="site-footer">
-  <div class="container">
-    <div class="footer-row">
-      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
-      <div class="footer-links">
-        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
-        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
-        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+  <script src="/js/main.js"></script>
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-row">
+        <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+          <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+          <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+        </div>
       </div>
     </div>
-  </div>
-</footer>
-
+  </footer>
 </body>
 </html>
