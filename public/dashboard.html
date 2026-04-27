@@ -13,7 +13,7 @@
         <a href="/" class="logo">HireLocal</a>
         <nav class="nav-links">
           <a href="/search.html">Browse Providers</a>
-          <a href="/login.html" data-action="logout">Logout</a>
+          <a href="#" data-action="logout">Logout</a>
         </nav>
       </div>
     </header>
@@ -114,6 +114,13 @@
               </div>
               <form id="dashboard-update-form" class="form-grid">
                 <label>
+                  <span>Profile Picture</span>
+                  <input type="file" name="profile_picture" accept="image/*" />
+                  <small class="input-help">Upload a profile picture that will appear on your public profile.</small>
+                </label>
+                <div class="full-width single-photo-preview" id="dashboard-profile-preview"></div>
+                
+                <label>
                   <span>Phone Number</span>
                   <input type="tel" name="phone" />
                 </label>
@@ -161,18 +168,18 @@
   </div>
 
   <script src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js"></script>
-  <script src="/js/main.js"></script><footer class="site-footer">
-  <div class="container">
-    <div class="footer-row">
-      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
-      <div class="footer-links">
-        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
-        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
-        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+  <script src="/js/main.js"></script>
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-row">
+        <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+          <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+          <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+        </div>
       </div>
     </div>
-  </div>
-</footer>
-
+  </footer>
 </body>
 </html>

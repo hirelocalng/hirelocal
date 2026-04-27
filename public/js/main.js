@@ -115,9 +115,12 @@ const createRatingStars = (ratingValue) => {
 const createResultCard = (provider) => `
   <article class="result-card">
     <div class="result-card-head">
-      <div>
-        <p class="eyebrow">${provider.verified ? "Verified provider" : "Provider"}</p>
-        <h3>${escapeHtml(provider.name)}</h3>
+      <div class="result-card-head-left">
+        ${provider.photo ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" class="result-card-avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-right:12px;">` : `<div class="result-card-avatar-placeholder" style="width:48px;height:48px;border-radius:50%;background:#C6A43F;display:flex;align-items:center;justify-content:center;margin-right:12px;">${escapeHtml((provider.name || "HL").slice(0,2).toUpperCase())}</div>`}
+        <div>
+          <p class="eyebrow">${provider.verified ? "Verified provider" : "Provider"}</p>
+          <h3>${escapeHtml(provider.name)}</h3>
+        </div>
       </div>
       <span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span>
     </div>
@@ -322,6 +325,81 @@ const validatePhotoCount = (photos) => {
   return null;
 };
 
+// ==================== PROFILE PICTURE HANDLING ====================
+
+const setupProfilePictureUpload = (input, previewContainer) => {
+  if (!input || !previewContainer) return null;
+
+  let currentPhoto = null;
+
+  const renderPreview = () => {
+    if (currentPhoto) {
+      previewContainer.innerHTML = `
+        <div class="photo-tile single">
+          <img src="${currentPhoto}" alt="Profile Picture" style="width:100px;height:100px;object-fit:cover;border-radius:50%;" />
+          <button type="button" class="remove-photo-btn" onclick="window.clearProfilePicture()" style="margin-top:8px;background:#a63f38;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;">Remove</button>
+        </div>
+      `;
+    } else {
+      previewContainer.innerHTML = `<div class="empty-state">No profile picture uploaded.</div>`;
+    }
+  };
+
+  input.addEventListener("change", async () => {
+    try {
+      const [dataUrl] = await readFilesAsDataUrls(input.files);
+      if (dataUrl) {
+        currentPhoto = dataUrl;
+        renderPreview();
+        if (window.profilePictureChanged) window.profilePictureChanged(currentPhoto);
+      }
+    } catch (error) {
+      previewContainer.innerHTML = `<div class="empty-state">Unable to preview image.</div>`;
+    }
+  });
+
+  return {
+    getPhoto: () => currentPhoto,
+    setPhoto: (photoUrl) => {
+      currentPhoto = photoUrl;
+      renderPreview();
+    },
+    clear: () => {
+      currentPhoto = null;
+      renderPreview();
+    }
+  };
+};
+
+window.clearProfilePicture = () => {
+  const uploader = window.profilePictureUploader;
+  if (uploader) {
+    uploader.clear();
+    const input = document.querySelector('input[name="profile_picture"]');
+    if (input) input.value = '';
+  }
+};
+
+const loadProfilePictureForEdit = async (previewContainer) => {
+  try {
+    const token = getStoredProviderToken();
+    if (!token) return;
+    
+    const { data } = await requestJson("/api/me", {}, "provider");
+    if (data.success && data.provider && data.provider.photo) {
+      if (previewContainer) {
+        previewContainer.innerHTML = `
+          <div class="photo-tile single">
+            <img src="${data.provider.photo}" alt="Profile Picture" style="width:100px;height:100px;object-fit:cover;border-radius:50%;" />
+          </div>
+        `;
+      }
+    }
+  } catch (error) {
+    console.error('Error loading profile picture:', error);
+  }
+};
+
 document.querySelectorAll('[data-action="logout"]').forEach((link) => {
   link.addEventListener("click", () => clearStoredProvider());
 });
@@ -358,7 +436,7 @@ if (page === "home") {
       featuredProviders.innerHTML = providers.map((provider) => `
         <article class="profile-preview">
           <div class="profile-preview-top">
-            <span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</span>
+            ${provider.photo ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" class="profile-preview-avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">` : `<span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</span>`}
             <div>
               <h3>${escapeHtml(provider.name)}</h3>
               <p>${escapeHtml(formatLocation(provider) || "Location pending")}</p>
@@ -437,44 +515,16 @@ if (page === "profile") {
   const reviewForm = document.getElementById("review-form");
   const contactLinks = document.getElementById("provider-contact-links");
   const gallery = document.getElementById("provider-gallery");
-  const editProfileInput = document.querySelector('input[name="profile_picture"]');
+  const editProfileForm = document.getElementById("edit-profile-form");
   const editProfilePreview = document.getElementById("edit-profile-preview");
+  let profilePictureUploader = null;
 
-  const loadProfileData = async () => {
-    try {
-      const { data } = await requestJson("/api/profile", {}, "provider");
-      if (data && data.profile_picture) {
-        editProfilePreview.innerHTML = `
-          <article class="photo-tile single">
-            <img src="${data.profile_picture}" alt="Current Profile Picture" />
-            <span>Current Profile Picture</span>
-          </article>
-        `;
-      }
-    } catch (error) {
-      editProfilePreview.innerHTML = `<div class="empty-state">Unable to load profile picture.</div>`;
-    }
-  };
-
-  if (editProfileInput && editProfilePreview) {
-    editProfileInput.addEventListener("change", async () => {
-      try {
-        const [dataUrl] = await readFilesAsDataUrls(editProfileInput.files);
-        if (dataUrl) {
-          editProfilePreview.innerHTML = `
-            <article class="photo-tile single">
-              <img src="${dataUrl}" alt="Profile Picture Preview" />
-              <span>Profile Picture</span>
-            </article>
-          `;
-        }
-      } catch (error) {
-        editProfilePreview.innerHTML = `<div class="empty-state">Unable to preview profile picture.</div>`;
-      }
-    });
+  // Setup profile picture uploader
+  const profilePicInput = editProfileForm?.elements.namedItem("profile_picture");
+  if (profilePicInput && editProfilePreview) {
+    profilePictureUploader = setupProfilePictureUpload(profilePicInput, editProfilePreview);
+    window.profilePictureUploader = profilePictureUploader;
   }
-
-  loadProfileData();
 
   const loadProfile = async () => {
     if (!providerId) {
@@ -492,9 +542,23 @@ if (page === "profile") {
       const { provider, reviews } = data;
       const location = formatLocation(provider) || "Location not set";
 
+      // Display profile picture
+      const profileImg = document.getElementById('profile-photo-img');
+      const profilePlaceholder = document.getElementById('profile-photo-placeholder');
+      if (provider.photo && profileImg) {
+        profileImg.src = provider.photo;
+        profileImg.style.display = 'block';
+        if (profilePlaceholder) profilePlaceholder.style.display = 'none';
+      } else if (profilePlaceholder) {
+        profilePlaceholder.style.display = 'flex';
+        if (profileImg) profileImg.style.display = 'none';
+      }
+
       if (profile) {
         profile.innerHTML = `
-          <div class="avatar-placeholder">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>
+          <div class="profile-photo-container">
+            ${provider.photo ? `<img id="profile-photo-img-display" src="${provider.photo}" alt="Profile Picture" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />` : `<div id="profile-photo-placeholder-display" class="avatar-placeholder">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`}
+          </div>
           <div class="profile-main-copy">
             <p class="eyebrow">${provider.verified ? "Verified provider" : "Provider profile"}</p>
             <h1>${escapeHtml(provider.name)}</h1>
@@ -524,6 +588,19 @@ if (page === "profile") {
         contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct contact details available yet.</div>`;
       }
 
+      // Populate edit form
+      if (editProfileForm) {
+        editProfileForm.elements.namedItem("name").value = provider.name || "";
+        editProfileForm.elements.namedItem("skill").value = provider.skill || "";
+        if (provider.photo && editProfilePreview) {
+          editProfilePreview.innerHTML = `
+            <div class="photo-tile single">
+              <img src="${provider.photo}" alt="Profile Picture" style="width:100px;height:100px;object-fit:cover;border-radius:50%;" />
+            </div>
+          `;
+        }
+      }
+
       if (reviewForm?.elements.namedItem("provider_id")) {
         reviewForm.elements.namedItem("provider_id").value = provider.id;
       }
@@ -536,6 +613,49 @@ if (page === "profile") {
       if (reviewsList) reviewsList.innerHTML = `<div class="empty-state">Unable to load profile details.</div>`;
     }
   };
+
+  // Handle edit profile form submission
+  editProfileForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setStatus(editProfileForm, "Updating profile...", "info");
+
+    const token = getStoredProviderToken();
+    if (!token) {
+      setStatus(editProfileForm, "Please login again to update your profile.", "error");
+      return;
+    }
+
+    const payload = {
+      name: editProfileForm.elements.namedItem("name").value,
+      skill: editProfileForm.elements.namedItem("skill").value
+    };
+
+    const profilePicInput = editProfileForm.elements.namedItem("profile_picture");
+    if (profilePicInput && profilePicInput.files.length > 0) {
+      const [photoDataUrl] = await readFilesAsDataUrls(profilePicInput.files);
+      if (photoDataUrl) {
+        payload.photo = photoDataUrl;
+      }
+    }
+
+    try {
+      const { data } = await requestJson("/api/provider/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }, "provider");
+
+      if (data.success) {
+        setStatus(editProfileForm, data.message || "Profile updated successfully.", "success");
+        // Reload profile data
+        setTimeout(() => loadProfile(), 1500);
+      } else {
+        setStatus(editProfileForm, data.message || "Unable to update profile.", "error");
+      }
+    } catch (error) {
+      setStatus(editProfileForm, "Unable to update profile right now.", "error");
+    }
+  });
 
   reviewForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -580,6 +700,16 @@ if (page === "dashboard") {
   const paymentStatus = document.getElementById("subscription-payment-status");
   let currentProvider = null;
   let paymentConfig = null;
+
+  // Setup profile picture uploader for dashboard
+  const profilePicInput = updateForm?.elements.namedItem("profile_picture");
+  const profilePreview = document.getElementById("dashboard-profile-preview");
+  let dashboardProfileUploader = null;
+  
+  if (profilePicInput && profilePreview) {
+    dashboardProfileUploader = setupProfilePictureUpload(profilePicInput, profilePreview);
+    window.dashboardProfileUploader = dashboardProfileUploader;
+  }
 
   const dashboardUploader = setupMultiImageUploader(
     updateForm?.elements.namedItem("work_photo_files"),
@@ -632,7 +762,7 @@ if (page === "dashboard") {
     }
 
     if (renewButton) {
-      renewButton.textContent = `Renew Now - \u20a6${amount.toLocaleString("en-NG")}`;
+      renewButton.textContent = `Renew Now - ₦${amount.toLocaleString("en-NG")}`;
       renewButton.disabled = !payment?.enabled;
       if (!payment?.enabled) {
         setTextStatus(paymentStatus, "Korapay keys are not configured yet.", "error");
@@ -667,7 +797,13 @@ if (page === "dashboard") {
       document.getElementById("dash-views").textContent = provider.views || "0";
       document.getElementById("dash-reviews").textContent = provider.review_count || "0";
 
+      // Display profile picture in dashboard summary
+      const profilePhotoHtml = provider.photo 
+        ? `<img src="${provider.photo}" alt="Profile" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-bottom:12px;">`
+        : `<div class="avatar-placeholder" style="width:60px;height:60px;border-radius:50%;margin-bottom:12px;">${escapeHtml((provider.name || "U").slice(0,2).toUpperCase())}</div>`;
+
       panel.innerHTML = `
+        ${profilePhotoHtml}
         <h2>${escapeHtml(provider.name)}</h2>
         <p><strong>Skill:</strong> ${escapeHtml(provider.skill || "Not set")}</p>
         <p><strong>Category:</strong> ${escapeHtml(provider.category || "General")}</p>
@@ -685,6 +821,17 @@ if (page === "dashboard") {
         emptyMessage: "Upload 3 to 5 work photos to build your portfolio."
       });
       dashboardUploader.setPhotos(provider.work_photos || []);
+      
+      // Load profile picture preview in dashboard edit form
+      if (provider.photo && profilePreview) {
+        profilePreview.innerHTML = `
+          <div class="photo-tile single">
+            <img src="${provider.photo}" alt="Profile Picture" style="width:100px;height:100px;object-fit:cover;border-radius:50%;" />
+          </div>
+        `;
+        if (dashboardProfileUploader) dashboardProfileUploader.setPhoto(provider.photo);
+      }
+      
       renderSubscriptionDetails(provider, paymentConfig);
       if (paymentConfig?.enabled) {
         clearTextStatus(paymentStatus);
@@ -801,6 +948,14 @@ if (page === "dashboard") {
       work_photos: workPhotos
     };
 
+    // Add profile picture if changed
+    if (dashboardProfileUploader) {
+      const newPhoto = dashboardProfileUploader.getPhoto();
+      if (newPhoto && newPhoto !== currentProvider?.photo) {
+        payload.photo = newPhoto;
+      }
+    }
+
     try {
       const { data } = await requestJson("/api/provider/me", {
         method: "PUT",
@@ -867,9 +1022,12 @@ if (page === "admin") {
     list.innerHTML = providers.map((provider) => `
       <article class="result-card admin-card">
         <div class="result-card-head">
-          <div>
-            <p class="eyebrow">${provider.verified ? "Verified provider" : "Awaiting review"}</p>
-            <h3>${escapeHtml(provider.name)}</h3>
+          <div class="result-card-head-left">
+            ${provider.photo ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-right:12px;">` : `<div style="width:48px;height:48px;border-radius:50%;background:#C6A43F;display:flex;align-items:center;justify-content:center;margin-right:12px;">${escapeHtml((provider.name || "HL").slice(0,2).toUpperCase())}</div>`}
+            <div>
+              <p class="eyebrow">${provider.verified ? "Verified provider" : "Awaiting review"}</p>
+              <h3>${escapeHtml(provider.name)}</h3>
+            </div>
           </div>
           <span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span>
         </div>
@@ -981,14 +1139,34 @@ if (page === "register") {
   const form = document.getElementById("register-form");
   const workPreview = document.getElementById("register-work-preview");
   const idPreview = document.getElementById("register-id-preview");
+  const profilePreview = document.getElementById("register-profile-preview");
   const workPhotoInput = form?.elements.namedItem("work_photo_files");
   const idPhotoInput = form?.elements.namedItem("id_photo_file");
+  const profilePicInput = form?.elements.namedItem("profile_picture");
 
   const registerUploader = setupMultiImageUploader(workPhotoInput, workPreview, {
     maxFiles: 5,
     addLabel: "Add work photo"
   });
   bindFilePreview(idPhotoInput, idPreview, false);
+
+  // Profile picture preview on registration
+  if (profilePicInput && profilePreview) {
+    profilePicInput.addEventListener("change", async () => {
+      try {
+        const [dataUrl] = await readFilesAsDataUrls(profilePicInput.files);
+        if (dataUrl) {
+          profilePreview.innerHTML = `
+            <div class="photo-tile single">
+              <img src="${dataUrl}" alt="Profile Picture Preview" style="width:100px;height:100px;object-fit:cover;border-radius:50%;" />
+            </div>
+          `;
+        }
+      } catch (error) {
+        profilePreview.innerHTML = `<div class="empty-state">Unable to preview profile picture.</div>`;
+      }
+    });
+  }
 
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -998,6 +1176,8 @@ if (page === "register") {
     const formData = new FormData(form);
     const workPhotos = registerUploader.getPhotos();
     const idPhotos = await readFilesAsDataUrls(idPhotoInput.files);
+    const profilePhotos = profilePicInput?.files.length ? await readFilesAsDataUrls(profilePicInput.files) : [];
+    
     const photoError = validatePhotoCount(workPhotos);
 
     if (photoError) {
@@ -1027,6 +1207,10 @@ if (page === "register") {
       work_photos: workPhotos
     };
 
+    if (profilePhotos.length) {
+      payload.photo = profilePhotos[0];
+    }
+
     try {
       const { data } = await requestJson("/api/register", {
         method: "POST",
@@ -1046,27 +1230,6 @@ if (page === "register") {
       setStatus(form, "Unable to create account right now.", "error");
     }
   });
-
-  const profileInput = document.querySelector('input[name="profile_picture"]');
-  const profilePreview = document.getElementById("register-profile-preview");
-
-  if (profileInput && profilePreview) {
-    profileInput.addEventListener("change", async () => {
-      try {
-        const [dataUrl] = await readFilesAsDataUrls(profileInput.files);
-        if (dataUrl) {
-          profilePreview.innerHTML = `
-            <article class="photo-tile single">
-              <img src="${dataUrl}" alt="Profile Picture Preview" />
-              <span>Profile Picture</span>
-            </article>
-          `;
-        }
-      } catch (error) {
-        profilePreview.innerHTML = `<div class="empty-state">Unable to preview profile picture.</div>`;
-      }
-    });
-  }
 }
 
 if (page === "login") {
