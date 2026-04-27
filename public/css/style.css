@@ -927,6 +927,10 @@ textarea {
   resize: vertical;
 }
 
+/* ============================================
+   DASHBOARD STYLES
+   ============================================ */
+
 .dashboard-page {
   padding-top: 1.5rem;
 }
@@ -955,6 +959,117 @@ textarea {
 .secondary-grid {
   margin-top: 1.2rem;
 }
+
+/* Dashboard Profile Summary */
+.profile-summary {
+  text-align: center;
+}
+
+.profile-summary img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 0.75rem;
+  border: 3px solid var(--brand);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-summary h2 {
+  margin-top: 0.5rem;
+}
+
+.profile-summary p {
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+/* Dashboard Photo Preview */
+#dashboard-photo-preview {
+  margin-bottom: 1rem;
+}
+
+#dashboard-photo-preview .photo-tile.single {
+  max-width: 120px;
+  margin: 0 auto;
+}
+
+/* Dashboard Form Full Width Fix */
+#dashboard-update-form .full-width {
+  grid-column: 1 / -1;
+}
+
+#dashboard-update-form label {
+  margin-bottom: 0.5rem;
+}
+
+/* Dashboard stats strip responsiveness */
+@media (max-width: 640px) {
+  .stats-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .dashboard-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .dashboard-chip {
+    align-self: center;
+  }
+}
+
+/* Avatar dot for dashboard */
+.avatar-dot {
+  width: 80px;
+  height: 80px;
+  font-size: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--brand));
+  margin: 0 auto 0.75rem;
+  color: white;
+  font-weight: bold;
+}
+
+/* Single photo preview for profile picture */
+.single-photo-preview .photo-tile.single {
+  max-width: 120px;
+  margin: 0 auto;
+}
+
+/* Dashboard update form improvements */
+#dashboard-update-form input:focus,
+#dashboard-update-form textarea:focus,
+#dashboard-update-form select:focus {
+  outline: 2px solid rgba(15, 118, 110, 0.18);
+  border-color: rgba(15, 118, 110, 0.45);
+}
+
+/* Subscription card improvements */
+.subscription-card .button {
+  margin-top: 0.5rem;
+}
+
+.status-box {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Work photos preview grid */
+.photo-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* ============================================
+   ADMIN STYLES
+   ============================================ */
 
 .admin-auth {
   margin-bottom: 1.4rem;
@@ -1148,7 +1263,22 @@ textarea {
   align-items: end;
 }
 
-/* Responsive adjustments */
+/* ============================================
+   EDIT PROFILE SECTION (Profile Page)
+   ============================================ */
+
+#edit-profile-section {
+  display: none;
+}
+
+#edit-profile-section.owner-visible {
+  display: block;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
 @media (max-width: 1024px) {
   .hero-layout,
   .split-banner,
