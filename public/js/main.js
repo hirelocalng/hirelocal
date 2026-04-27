@@ -440,6 +440,42 @@ if (page === "profile") {
   const editProfileInput = document.querySelector('input[name="profile_picture"]');
   const editProfilePreview = document.getElementById("edit-profile-preview");
 
+  const loadProfileData = async () => {
+    try {
+      const { data } = await requestJson("/api/profile", {}, "provider");
+      if (data && data.profile_picture) {
+        editProfilePreview.innerHTML = `
+          <article class="photo-tile single">
+            <img src="${data.profile_picture}" alt="Current Profile Picture" />
+            <span>Current Profile Picture</span>
+          </article>
+        `;
+      }
+    } catch (error) {
+      editProfilePreview.innerHTML = `<div class="empty-state">Unable to load profile picture.</div>`;
+    }
+  };
+
+  if (editProfileInput && editProfilePreview) {
+    editProfileInput.addEventListener("change", async () => {
+      try {
+        const [dataUrl] = await readFilesAsDataUrls(editProfileInput.files);
+        if (dataUrl) {
+          editProfilePreview.innerHTML = `
+            <article class="photo-tile single">
+              <img src="${dataUrl}" alt="Profile Picture Preview" />
+              <span>Profile Picture</span>
+            </article>
+          `;
+        }
+      } catch (error) {
+        editProfilePreview.innerHTML = `<div class="empty-state">Unable to preview profile picture.</div>`;
+      }
+    });
+  }
+
+  loadProfileData();
+
   const loadProfile = async () => {
     if (!providerId) {
       if (reviewsList) reviewsList.innerHTML = `<div class="empty-state">No provider selected.</div>`;
