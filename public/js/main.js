@@ -437,6 +437,8 @@ if (page === "profile") {
   const reviewForm = document.getElementById("review-form");
   const contactLinks = document.getElementById("provider-contact-links");
   const gallery = document.getElementById("provider-gallery");
+  const editProfileInput = document.querySelector('input[name="profile_picture"]');
+  const editProfilePreview = document.getElementById("edit-profile-preview");
 
   const loadProfile = async () => {
     if (!providerId) {

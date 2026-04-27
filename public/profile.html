@@ -98,6 +98,32 @@
                   <button type="submit" class="button primary full-width-button">Submit Review</button>
                 </form>
               </div>
+
+              <section class="glass-card edit-profile">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Edit Profile</p>
+                    <h2>Update your details</h2>
+                  </div>
+                </div>
+                <form id="edit-profile-form" class="form-grid">
+                  <label>
+                    <span>Full Name</span>
+                    <input type="text" name="name" required />
+                  </label>
+                  <label>
+                    <span>Skill</span>
+                    <input type="text" name="skill" required />
+                  </label>
+                  <label>
+                    <span>Profile Picture</span>
+                    <input type="file" name="profile_picture" accept="image/*" />
+                    <small class="input-help">Upload a profile picture to update your public profile.</small>
+                  </label>
+                  <div class="full-width single-photo-preview" id="edit-profile-preview"></div>
+                  <button type="submit" class="button primary full-width-button">Save Changes</button>
+                </form>
+              </section>
             </aside>
           </section>
         </div>
