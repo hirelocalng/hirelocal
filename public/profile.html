@@ -5,12 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Provider Profile | HireLocal</title>
   <link rel="stylesheet" href="/css/style.css" />
-  <style>
-    .edit-profile { display: none !important; }
-    .edit-profile.owner-visible { display: block !important; }
-    #edit-profile-section { display: none; }
-    #edit-profile-section.owner-visible { display: block; }
-  </style>
 </head>
 <body data-page="profile">
   <div class="page-shell">
@@ -105,7 +99,8 @@
                 </form>
               </div>
 
-              <section class="glass-card edit-profile" id="edit-profile-section">
+              <!-- Edit Profile Section - Hidden by default, shown only to owner -->
+              <section class="glass-card edit-profile" id="edit-profile-section" style="display: none;">
                 <div class="panel-head">
                   <div>
                     <p class="eyebrow">Edit Profile</p>
@@ -113,15 +108,15 @@
                   </div>
                 </div>
                 <form id="edit-profile-form" class="form-grid">
-                  <label>
+                  <label class="full-width">
                     <span>Full Name</span>
                     <input type="text" name="name" required />
                   </label>
-                  <label>
+                  <label class="full-width">
                     <span>Skill</span>
                     <input type="text" name="skill" required />
                   </label>
-                  <label>
+                  <label class="full-width">
                     <span>Profile Picture</span>
                     <input type="file" name="profile_picture" accept="image/*" id="edit-profile-picture-input" />
                     <small class="input-help">Upload a profile picture to update your public profile.</small>
