@@ -90,44 +90,44 @@ const renderProviderAvatar = (provider, size = "normal") => {
 const initials = escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase());
 const dim = size === "large" ? "96px" : "48px";
 if (provider.photo && provider.photo.trim() !== "") {
-return `<img src="${provider.photo}" alt="${escapeHtml(provider.name)} profile photo" class="avatar-photo ${size === "large" ? "avatar-photo-large" : ""}" style="width:${dim};height:${dim};border-radius:50%;object-fit:cover;" />`;
+return `<img src="${provider.photo}" alt="${escapeHtml(provider.name)} profile photo" style="width:${dim};height:${dim};border-radius:50%;object-fit:cover;" />`;
 }
-return `<span class="avatar-dot" style="width:${dim};height:${dim};display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#e5e7eb;">${initials}</span>`;
+return `<span class="avatar-dot" style="width:${dim};height:${dim};display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg, var(--accent), var(--brand));">${initials}</span>`;
 };
 
 const createResultCard = (provider) => `
-  <article class="result-card">
-    <div class="result-card-head">
-      <div style="display:flex;align-items:center;gap:0.75rem;">
-        ${renderProviderAvatar(provider)}
-        <div>
-          <p class="eyebrow">${provider.verified ? "Verified provider" : "Provider"}</p>
-          <h3>${escapeHtml(provider.name)}</h3>
-        </div>
-      </div>
-      <span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span>
-    </div>
-    <div class="result-card-meta">
-      <span class="pill">${escapeHtml(provider.skill || "Skilled worker")}</span>
-      <span class="pill warm">${escapeHtml(formatLocation(provider) || "Location pending")}</span>
-    </div>
-    <p>${escapeHtml(provider.bio || "No bio added yet.")}</p>
-    <div class="result-card-meta">
-      <span>${createRatingStars(provider.rating)} ${escapeHtml(String(provider.rating || "0.00"))}</span>
-      <span>${escapeHtml(String(provider.review_count || 0))} review(s)</span>
-    </div>
-    <a class="button secondary full" href="/profile.html?id=${provider.id}">View Full Profile</a>
-  </article>
+<article class="result-card">
+<div class="result-card-head">
+<div style="display:flex;align-items:center;gap:0.75rem;">
+${renderProviderAvatar(provider)}
+<div>
+<p class="eyebrow">${provider.verified ? "Verified provider" : "Provider"}</p>
+<h3>${escapeHtml(provider.name)}</h3>
+</div>
+</div>
+<span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span>
+</div>
+<div class="result-card-meta">
+<span class="pill">${escapeHtml(provider.skill || "Skilled worker")}</span>
+<span class="pill warm">${escapeHtml(formatLocation(provider) || "Location pending")}</span>
+</div>
+<p>${escapeHtml(provider.bio || "No bio added yet.")}</p>
+<div class="result-card-meta">
+<span>${createRatingStars(provider.rating)} ${escapeHtml(String(provider.rating || "0.00"))}</span>
+<span>${escapeHtml(String(provider.review_count || 0))} review(s)</span>
+</div>
+<a class="button secondary full" href="/profile.html?id=${provider.id}">View Full Profile</a>
+</article>
 `;
 
 const createReviewCard = (review) => `
-  <article class="review-card">
-    <div class="result-card-head">
-      <strong>${escapeHtml(review.reviewer_name)}</strong>
-      <span class="pill">${review.rating}/5</span>
-    </div>
-    <p>${escapeHtml(review.comment || "No comment.")}</p>
-  </article>
+<article class="review-card">
+<div class="result-card-head">
+<strong>${escapeHtml(review.reviewer_name)}</strong>
+<span class="pill">${review.rating}/5</span>
+</div>
+<p>${escapeHtml(review.comment || "No comment.")}</p>
+</article>
 `;
 
 const renderPhotoGallery = (container, photos = [], options = {}) => {
@@ -264,32 +264,32 @@ const providers = (data.providers || []).slice(0, 10);
 if (!providers.length) return;
 featuredProviders.innerHTML = providers.map((provider) => `
 <article class="provider-horizontal-card">
-  <div class="provider-card-avatar">
-    ${provider.photo && provider.photo.trim() !== ""
-      ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" />`
-      : `<div class="avatar-placeholder-small">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`
-    }
-  </div>
-  <div class="provider-card-info">
-    <div class="provider-card-header">
-      <div class="provider-name-rating">
-        <h3 class="provider-name">${escapeHtml(provider.name)}</h3>
-        <div class="provider-rating">
-          ${createRatingStars(provider.rating)} <span>(${provider.review_count || 0})</span>
-        </div>
-      </div>
-      ${provider.verified ? '<span class="verified-badge">✓ Verified</span>' : ''}
-    </div>
-    <div class="provider-location">
-      📍 ${escapeHtml(formatLocation(provider) || "Location pending")}
-    </div>
-    <p class="provider-bio">${escapeHtml(provider.bio || "No bio added yet.")}</p>
-    <div class="provider-tags">
-      <span class="provider-tag">${escapeHtml(provider.skill || "Skilled worker")}</span>
-      <span class="provider-tag">${escapeHtml(provider.category || "General")}</span>
-    </div>
-    <button class="view-profile-btn" onclick="window.location.href='/profile.html?id=${provider.id}'">View Profile →</button>
-  </div>
+<div class="provider-card-avatar">
+${provider.photo && provider.photo.trim() !== "" 
+? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" />`
+: `<div class="avatar-placeholder-small">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`
+}
+</div>
+<div class="provider-card-info">
+<div class="provider-card-header">
+<div class="provider-name-rating">
+<h3 class="provider-name">${escapeHtml(provider.name)}</h3>
+<div class="provider-rating">
+${createRatingStars(provider.rating)} <span>(${provider.review_count || 0})</span>
+</div>
+</div>
+${provider.verified ? '<span class="verified-badge">✓ Verified</span>' : ''}
+</div>
+<div class="provider-location">
+📍 ${escapeHtml(formatLocation(provider) || "Location pending")}
+</div>
+<p class="provider-bio">${escapeHtml(provider.bio || "No bio added yet.")}</p>
+<div class="provider-tags">
+<span class="provider-tag">${escapeHtml(provider.skill || "Skilled worker")}</span>
+<span class="provider-tag">${escapeHtml(provider.category || "General")}</span>
+</div>
+<button class="view-profile-btn" onclick="window.location.href='/profile.html?id=${provider.id}'">View Profile →</button>
+</div>
 </article>
 `).join("");
 } catch (error) { console.error("Error loading providers:", error); }
@@ -363,30 +363,101 @@ const editSection = document.getElementById("edit-profile-section");
 const editForm = document.getElementById("edit-profile-form");
 const editPictureInput = document.getElementById("edit-profile-picture-input");
 const editPreview = document.getElementById("edit-profile-preview");
+
 let editPendingPhoto = null;
+
+if (editPictureInput && editPreview) {
+editPictureInput.addEventListener("change", async () => {
+try {
+const [dataUrl] = await readFilesAsDataUrls(editPictureInput.files);
+if (dataUrl) {
+editPendingPhoto = dataUrl;
+editPreview.innerHTML = `<article class="photo-tile single"> <img src="${dataUrl}" alt="New profile picture preview" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /> <span>New photo (not saved yet)</span> </article>`;
+}
+} catch (error) {
+editPreview.innerHTML = `<div class="empty-state">Unable to preview image.</div>`;
+}
+});
+}
 
 const maybeRevealEditSection = (loadedProviderId) => {
 const stored = getStoredProvider();
 const token = getStoredProviderToken();
-if (!stored || !token || !editSection) return;
+const section = document.getElementById("edit-profile-section");
+const formEl = document.getElementById("edit-profile-form");
+const previewEl = document.getElementById("edit-profile-preview");
+
+if (!stored || !token || !section) return;
+
 if (String(stored.id) === String(loadedProviderId)) {
-editSection.classList.add("owner-visible");
-const nameInput = editForm?.elements.namedItem("name");
-const skillInput = editForm?.elements.namedItem("skill");
+section.classList.add("owner-visible");
+section.style.display = "block";
+
+const nameInput = formEl?.elements?.namedItem("name");
+const skillInput = formEl?.elements?.namedItem("skill");
 if (nameInput) nameInput.value = stored.name || "";
 if (skillInput) skillInput.value = stored.skill || "";
 
-if (editPreview && stored.photo && !editPendingPhoto) {
-editPreview.innerHTML = `
+if (previewEl && stored.photo && stored.photo.trim() !== "" && !editPendingPhoto) {
+previewEl.innerHTML = `
 <article class="photo-tile single">
-<img src="${stored.photo}" alt="Current profile picture"
-style="width:96px;height:96px;border-radius:50%;object-fit:cover;" />
+<img src="${stored.photo}" alt="Current profile picture" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" />
 <span>Current photo</span>
 </article>
 `;
 }
 }
 };
+
+editForm?.addEventListener("submit", async (event) => {
+event.preventDefault();
+const stored = getStoredProvider();
+const token = getStoredProviderToken();
+if (!stored || !token) {
+setStatus(editForm, "You must be logged in to edit your profile.", "error");
+return;
+}
+
+setStatus(editForm, "Saving your profile changes...", "info");
+
+const formData = new FormData(editForm);
+const payload = {
+phone: stored.phone || null,
+whatsapp: stored.whatsapp || null,
+skill: formData.get("skill") || stored.skill || "",
+category: stored.category || null,
+state: stored.state || "",
+lga: stored.lga || null,
+city: stored.city || null,
+bio: stored.bio || null,
+work_photos: stored.work_photos || []
+};
+
+if (editPendingPhoto) {
+payload.photo = editPendingPhoto;
+} else if (stored.photo) {
+payload.photo = stored.photo;
+}
+
+try {
+const { data } = await requestJson("/api/provider/me", {
+method: "PUT",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(payload)
+});
+
+if (data.success) {
+editPendingPhoto = null;
+setStoredProvider(data.provider);
+setStatus(editForm, data.message || "Profile updated successfully.", "success");
+loadProfile();
+} else {
+setStatus(editForm, data.message || "Unable to update your profile.", "error");
+}
+} catch (error) {
+setStatus(editForm, "Unable to update your profile right now.", "error");
+}
+});
 
 const loadProfile = async () => {
 if (!providerId) {
@@ -404,8 +475,8 @@ const location = formatLocation(provider) || "Location not set";
 
 if (profile) {
 const avatarHtml = provider.photo && provider.photo.trim() !== ""
-? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)} profile photo" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 1rem;" />`
-: `<div class="avatar-placeholder">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
+? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)} profile photo" style="width:120px;height:120px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 1rem;border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.15);" />`
+: `<div class="avatar-placeholder" style="width:120px;height:120px;font-size:2rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;border-radius:50%;background:linear-gradient(135deg, var(--accent), var(--brand));color:white;font-weight:bold;">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
 
 profile.innerHTML = `
 ${avatarHtml}
@@ -440,15 +511,8 @@ contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct c
 if (reviewForm?.elements.namedItem("provider_id")) {
 reviewForm.elements.namedItem("provider_id").value = provider.id;
 }
-maybeRevealEditSection(provider.id);
 
-if (editSection?.classList.contains("owner-visible")) {
-const nameInput = editForm?.elements.namedItem("name");
-const skillInput = editForm?.elements.namedItem("skill");
-if (nameInput) nameInput.value = provider.name || "";
-if (skillInput) skillInput.value = provider.skill || "";
-setStoredProvider(provider);
-}
+maybeRevealEditSection(provider.id);
 
 if (!reviewsList) return;
 reviewsList.innerHTML = reviews.length
@@ -499,7 +563,7 @@ const subscriptionNote = document.getElementById("subscription-note");
 const subscriptionWarning = document.getElementById("subscription-warning");
 const renewButton = document.getElementById("subscription-renew-button");
 const paymentStatus = document.getElementById("subscription-payment-status");
-const photoInput = updateForm?.elements.namedItem("profile_picture");
+const photoInput = updateForm?.elements?.namedItem("profile_picture");
 const photoPreview = document.getElementById("dashboard-photo-preview");
 
 let currentProvider = null;
@@ -521,7 +585,7 @@ photoPreview.innerHTML = `<div class="empty-state">Unable to preview photo.</div
 }
 
 const dashboardUploader = setupMultiImageUploader(
-updateForm?.elements.namedItem("work_photo_files"),
+updateForm?.elements?.namedItem("work_photo_files"),
 workPreview,
 { maxFiles: 5, addLabel: "Add work photo" }
 );
@@ -589,7 +653,7 @@ document.getElementById("dash-views").textContent = provider.views || "0";
 document.getElementById("dash-reviews").textContent = provider.review_count || "0";
 
 const avatarHtml = provider.photo && provider.photo.trim() !== ""
-? `<img src="${provider.photo}" alt="Profile photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;margin-bottom:0.75rem;" />`
+? `<img src="${provider.photo}" alt="Profile photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;margin-bottom:0.75rem;border:2px solid var(--brand);" />`
 : `<div class="avatar-dot" style="width:80px;height:80px;font-size:1.75rem;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#e5e7eb;margin-bottom:0.75rem;">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
 
 panel.innerHTML = `
@@ -855,9 +919,9 @@ if (page === "register") {
 const form = document.getElementById("register-form");
 const workPreview = document.getElementById("register-work-preview");
 const idPreview = document.getElementById("register-id-preview");
-const workPhotoInput = form?.elements.namedItem("work_photo_files");
-const idPhotoInput = form?.elements.namedItem("id_photo_file");
-const profileInput = form?.elements.namedItem("profile_picture");
+const workPhotoInput = form?.elements?.namedItem("work_photo_files");
+const idPhotoInput = form?.elements?.namedItem("id_photo_file");
+const profileInput = form?.elements?.namedItem("profile_picture");
 const profilePreview = document.getElementById("register-profile-preview");
 
 const registerUploader = setupMultiImageUploader(workPhotoInput, workPreview, {
