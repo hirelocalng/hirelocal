@@ -316,6 +316,10 @@ await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS id_photo TEXT`)
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMP`);
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS name_changed_at TIMESTAMP`);
+
+// FIX: Force photo column to TEXT type (fixes "value too long" error)
+await pool.query(`ALTER TABLE providers ALTER COLUMN photo TYPE TEXT`).catch(e => console.log('Photo column already TEXT or error:', e.message));
+
 await pool.query(`UPDATE providers SET subscription_expiry = NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days' WHERE subscription_expiry IS NULL`);
 await pool.query(`UPDATE providers SET is_active = CASE WHEN subscription_expiry > NOW() THEN true ELSE false END WHERE subscription_expiry IS NOT NULL`);
 await pool.query(`CREATE TABLE IF NOT EXISTS reviews ( id SERIAL PRIMARY KEY, provider_id INTEGER REFERENCES providers(id), reviewer_name VARCHAR(100), rating INTEGER CHECK (rating >= 1 AND rating <= 5), comment TEXT, date TIMESTAMP DEFAULT NOW() )`);
