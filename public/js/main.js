@@ -265,7 +265,7 @@ if (!providers.length) return;
 featuredProviders.innerHTML = providers.map((provider) => `
 <article class="provider-horizontal-card">
   <div class="provider-card-avatar">
-    ${provider.photo && provider.photo.trim() !== "" 
+    ${provider.photo && provider.photo.trim() !== ""
       ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" />`
       : `<div class="avatar-placeholder-small">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`
     }
@@ -363,28 +363,12 @@ const editSection = document.getElementById("edit-profile-section");
 const editForm = document.getElementById("edit-profile-form");
 const editPictureInput = document.getElementById("edit-profile-picture-input");
 const editPreview = document.getElementById("edit-profile-preview");
-
 let editPendingPhoto = null;
-
-if (editPictureInput && editPreview) {
-editPictureInput.addEventListener("change", async () => {
-try {
-const [dataUrl] = await readFilesAsDataUrls(editPictureInput.files);
-if (dataUrl) {
-editPendingPhoto = dataUrl;
-editPreview.innerHTML = `<article class="photo-tile single"> <img src="${dataUrl}" alt="New profile picture preview" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /> <span>New photo (not saved yet)</span> </article>`;
-}
-} catch (error) {
-editPreview.innerHTML = `<div class="empty-state">Unable to preview image.</div>`;
-}
-});
-}
 
 const maybeRevealEditSection = (loadedProviderId) => {
 const stored = getStoredProvider();
 const token = getStoredProviderToken();
 if (!stored || !token || !editSection) return;
-
 if (String(stored.id) === String(loadedProviderId)) {
 editSection.classList.add("owner-visible");
 const nameInput = editForm?.elements.namedItem("name");
@@ -403,56 +387,6 @@ style="width:96px;height:96px;border-radius:50%;object-fit:cover;" />
 }
 }
 };
-
-editForm?.addEventListener("submit", async (event) => {
-event.preventDefault();
-const stored = getStoredProvider();
-const token = getStoredProviderToken();
-if (!stored || !token) {
-setStatus(editForm, "You must be logged in to edit your profile.", "error");
-return;
-}
-
-setStatus(editForm, "Saving your profile changes...", "info");
-
-const formData = new FormData(editForm);
-const payload = {
-phone: stored.phone || null,
-whatsapp: stored.whatsapp || null,
-skill: formData.get("skill") || stored.skill || "",
-category: stored.category || null,
-state: stored.state || "",
-lga: stored.lga || null,
-city: stored.city || null,
-bio: stored.bio || null,
-work_photos: stored.work_photos || []
-};
-
-if (editPendingPhoto) {
-payload.photo = editPendingPhoto;
-} else if (stored.photo) {
-payload.photo = stored.photo;
-}
-
-try {
-const { data } = await requestJson("/api/provider/me", {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(payload)
-});
-
-if (data.success) {
-editPendingPhoto = null;
-setStoredProvider(data.provider);
-setStatus(editForm, data.message || "Profile updated successfully.", "success");
-loadProfile();
-} else {
-setStatus(editForm, data.message || "Unable to update your profile.", "error");
-}
-} catch (error) {
-setStatus(editForm, "Unable to update your profile right now.", "error");
-}
-});
 
 const loadProfile = async () => {
 if (!providerId) {
@@ -506,7 +440,6 @@ contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct c
 if (reviewForm?.elements.namedItem("provider_id")) {
 reviewForm.elements.namedItem("provider_id").value = provider.id;
 }
-
 maybeRevealEditSection(provider.id);
 
 if (editSection?.classList.contains("owner-visible")) {
