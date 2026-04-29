@@ -43,16 +43,43 @@ console.warn('TOKEN_SECRET is not set. Add it in .env before deployment.');
 }
 
 app.disable('x-powered-by');
+
+// ============================================================
+// SECURITY HEADERS — updated to include Content-Security-Policy
+// ============================================================
 app.use((req, res, next) => {
+// Prevent clickjacking
 res.setHeader('X-Frame-Options', 'DENY');
+
+// Prevent MIME-type sniffing
 res.setHeader('X-Content-Type-Options', 'nosniff');
+
+// Control referrer info sent to third parties
 res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+// Disable unused browser features
 res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+// Force HTTPS in production (with preload flag for extra protection)
 if (isProduction) {
-res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 }
+
+// Content Security Policy — tailored for HireLocal (Korapay payments + base64 photos)
+res.setHeader('Content-Security-Policy',
+"default-src 'self'; " +
+"script-src 'self' 'unsafe-inline' https://js.korapay.com; " +
+"style-src 'self' 'unsafe-inline'; " +
+"img-src 'self' data: blob: https:; " +
+"font-src 'self' https:; " +
+"connect-src 'self' https://api.korapay.com; " +
+"frame-src https://korapay.com https://checkout.korapay.com; " +
+"object-src 'none';"
+);
+
 next();
 });
+// ============================================================
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '20mb' }));
@@ -524,48 +551,22 @@ const finalName = nameIsChanging ? newName : currentName;
 let query, params;
 
 if (photo !== undefined && nameIsChanging) {
-query = `
-UPDATE providers
-SET name=$1, name_changed_at=NOW(),
-phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6,
-lga=$7, city=$8, bio=$9, work_photos=$10::jsonb, photo=$11
-WHERE id=$12
-RETURNING ${ownerProviderColumns}
-`;
+query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb, photo=$11 WHERE id=$12 RETURNING ${ownerProviderColumns}`;
 params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio,
 JSON.stringify(workPhotos), photo, auth.sub];
 
 } else if (photo !== undefined && !nameIsChanging) {
-query = `
-UPDATE providers
-SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5,
-lga=$6, city=$7, bio=$8, work_photos=$9::jsonb, photo=$10
-WHERE id=$11
-RETURNING ${ownerProviderColumns}
-`;
+query = `UPDATE providers SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8, work_photos=$9::jsonb, photo=$10 WHERE id=$11 RETURNING ${ownerProviderColumns}`;
 params = [phone, whatsapp, skill, category, state, lga, city, bio,
 JSON.stringify(workPhotos), photo, auth.sub];
 
 } else if (photo === undefined && nameIsChanging) {
-query = `
-UPDATE providers
-SET name=$1, name_changed_at=NOW(),
-phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6,
-lga=$7, city=$8, bio=$9, work_photos=$10::jsonb
-WHERE id=$11
-RETURNING ${ownerProviderColumns}
-`;
+query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb WHERE id=$11 RETURNING ${ownerProviderColumns}`;
 params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio,
 JSON.stringify(workPhotos), auth.sub];
 
 } else {
-query = `
-UPDATE providers
-SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5,
-lga=$6, city=$7, bio=$8, work_photos=$9::jsonb
-WHERE id=$10
-RETURNING ${ownerProviderColumns}
-`;
+query = `UPDATE providers SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8, work_photos=$9::jsonb WHERE id=$10 RETURNING ${ownerProviderColumns}`;
 params = [phone, whatsapp, skill, category, state, lga, city, bio,
 JSON.stringify(workPhotos), auth.sub];
 }

@@ -514,17 +514,25 @@ h3 {
 
 .provider-card-avatar img,
 .provider-card-avatar .avatar-placeholder-small {
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  background: linear-gradient(135deg, var(--accent), var(--brand));
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: bold;
   color: white;
+}
+
+.provider-card-avatar img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
 }
 
 .provider-card-info {
@@ -960,7 +968,6 @@ textarea {
   margin-top: 1.2rem;
 }
 
-/* Dashboard Profile Summary */
 .profile-summary {
   text-align: center;
 }
@@ -985,7 +992,6 @@ textarea {
   margin-bottom: 0.5rem;
 }
 
-/* Dashboard Photo Preview */
 #dashboard-photo-preview {
   margin-bottom: 1rem;
 }
@@ -995,7 +1001,6 @@ textarea {
   margin: 0 auto;
 }
 
-/* Dashboard Form Full Width Fix */
 #dashboard-update-form .full-width {
   grid-column: 1 / -1;
 }
@@ -1004,23 +1009,19 @@ textarea {
   margin-bottom: 0.5rem;
 }
 
-/* Dashboard stats strip responsiveness */
 @media (max-width: 640px) {
   .stats-strip {
     grid-template-columns: repeat(2, 1fr);
   }
-  
   .dashboard-hero {
     flex-direction: column;
     text-align: center;
   }
-  
   .dashboard-chip {
     align-self: center;
   }
 }
 
-/* Avatar dot for dashboard */
 .avatar-dot {
   width: 80px;
   height: 80px;
@@ -1035,13 +1036,11 @@ textarea {
   font-weight: bold;
 }
 
-/* Single photo preview for profile picture */
 .single-photo-preview .photo-tile.single {
   max-width: 120px;
   margin: 0 auto;
 }
 
-/* Dashboard update form improvements */
 #dashboard-update-form input:focus,
 #dashboard-update-form textarea:focus,
 #dashboard-update-form select:focus {
@@ -1049,7 +1048,6 @@ textarea {
   border-color: rgba(15, 118, 110, 0.45);
 }
 
-/* Subscription card improvements */
 .subscription-card .button {
   margin-top: 0.5rem;
 }
@@ -1059,7 +1057,6 @@ textarea {
   font-size: 0.9rem;
 }
 
-/* Work photos preview grid */
 .photo-preview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1089,12 +1086,6 @@ textarea {
   gap: 0.75rem;
 }
 
-.status-box {
-  min-height: 1.25rem;
-  margin-top: 0.15rem;
-  font-weight: 700;
-}
-
 .status-box.info {
   color: var(--muted);
 }
@@ -1122,8 +1113,7 @@ textarea {
   font-size: 0.92rem;
 }
 
-.photo-gallery,
-.photo-preview-grid {
+.photo-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.9rem;
@@ -1272,14 +1262,6 @@ textarea {
 }
 
 #edit-profile-section.owner-visible {
-  display: block;
-}
-
-.edit-profile {
-  display: none !important;
-}
-
-.edit-profile.owner-visible {
   display: block !important;
 }
 
