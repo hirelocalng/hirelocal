@@ -5,6 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Provider Dashboard | HireLocal</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .loading-spinner {
+      text-align: center;
+      padding: 3rem;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .error-message {
+      background: #fee;
+      color: #c33;
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .pill.success {
+      background: #e6f4ea;
+      color: #2e7d32;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+    }
+    .pill.warm {
+      background: #fff3e0;
+      color: #ed6c02;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body data-page="dashboard">
   <div class="page-shell">
@@ -13,177 +55,338 @@
         <a href="/" class="logo">HireLocal</a>
         <nav class="nav-links">
           <a href="/search.html">Browse Providers</a>
-          <a href="/login.html" data-action="logout">Logout</a>
+          <a href="#" id="logout-link" style="cursor:pointer;">Logout</a>
         </nav>
       </div>
     </header>
 
     <main>
-      <section class="section dashboard-page">
-        <div class="container">
-          <div class="dashboard-hero">
-            <div>
-              <p class="eyebrow">Provider dashboard</p>
-              <h1>Your business snapshot</h1>
-              <p>Keep an eye on how your public profile is performing and whether your account is verified.</p>
-            </div>
-            <div class="dashboard-chip" id="dashboard-badge">Your profile overview</div>
-          </div>
-
-          <div class="stats-strip" id="dashboard-stats">
-            <article class="metric-card">
-              <span class="mini-label">Plan</span>
-              <strong id="dash-plan">Free</strong>
-            </article>
-            <article class="metric-card">
-              <span class="mini-label">Verification</span>
-              <strong id="dash-verified">Pending</strong>
-            </article>
-            <article class="metric-card">
-              <span class="mini-label">Profile Views</span>
-              <strong id="dash-views">0</strong>
-            </article>
-            <article class="metric-card">
-              <span class="mini-label">Reviews</span>
-              <strong id="dash-reviews">0</strong>
-            </article>
-          </div>
-
-          <div class="dashboard-grid">
-            <section class="glass-card profile-summary" id="dashboard-profile">
-              <h2>Profile Summary</h2>
-              <p>Your provider details will appear here after login.</p>
-            </section>
-
-            <aside class="dashboard-side-column">
-              <section class="glass-card subscription-card" id="subscription-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">Subscription</p>
-                    <h2>Visibility plan</h2>
-                  </div>
-                  <span class="pill warm" id="subscription-status">Loading</span>
-                </div>
-                <div class="subscription-meta-grid">
-                  <article class="subscription-meta-card">
-                    <span class="mini-label">Expiry Date</span>
-                    <strong id="subscription-expiry">-</strong>
-                  </article>
-                  <article class="subscription-meta-card">
-                    <span class="mini-label">Days Remaining</span>
-                    <strong id="subscription-days">0</strong>
-                  </article>
-                </div>
-                <p class="subscription-note" id="subscription-note">Your current visibility status will appear here.</p>
-                <div class="subscription-warning hidden" id="subscription-warning" aria-live="polite"></div>
-                <button type="button" class="button primary full-width-button" id="subscription-renew-button">
-                  Renew Now - ₦1,000
-                </button>
-                <div class="status-box" id="subscription-payment-status" aria-live="polite"></div>
-              </section>
-
-              <section class="glass-card side-card">
-                <p class="eyebrow">Growth checklist</p>
-                <h2>How to improve your profile</h2>
-                <ul class="plain-list">
-                  <li>Add a profile picture to build trust with clients.</li>
-                  <li>Write a strong bio that describes your best services.</li>
-                  <li>Use a clear phone number and WhatsApp contact.</li>
-                  <li>Upload 3-5 work photos to showcase your skills.</li>
-                  <li>Ask happy clients to leave reviews on your profile.</li>
-                </ul>
-              </section>
-            </aside>
-          </div>
-
-          <section class="dashboard-grid secondary-grid">
-            <section class="glass-card">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Your work photos</p>
-                  <h2>Portfolio gallery</h2>
-                </div>
-              </div>
-              <div id="dashboard-gallery" class="photo-gallery"></div>
-            </section>
-
-            <section class="glass-card">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Update profile</p>
-                  <h2>Edit your listing</h2>
-                </div>
-              </div>
-              <form id="dashboard-update-form" class="form-grid">
-                <!-- ========== ADDED: PROFILE PICTURE UPLOAD ========== -->
-                <label class="full-width">
-                  <span>Profile Picture</span>
-                  <input type="file" name="profile_picture" accept="image/*" />
-                  <small class="input-help">Upload a profile picture to appear on your public profile.</small>
-                </label>
-                <div class="full-width single-photo-preview" id="dashboard-photo-preview"></div>
-                <!-- ========== END ADDED SECTION ========== -->
-
-                <label>
-                  <span>Phone Number</span>
-                  <input type="tel" name="phone" />
-                </label>
-                <label>
-                  <span>WhatsApp Number</span>
-                  <input type="tel" name="whatsapp" />
-                </label>
-                <label>
-                  <span>Skill</span>
-                  <input type="text" name="skill" required />
-                </label>
-                <label>
-                  <span>Category</span>
-                  <input type="text" name="category" />
-                </label>
-                <label>
-                  <span>State</span>
-                  <input type="text" name="state" required />
-                </label>
-                <label>
-                  <span>LGA</span>
-                  <input type="text" name="lga" />
-                </label>
-                <label>
-                  <span>City / Area</span>
-                  <input type="text" name="city" />
-                </label>
-                <label class="full-width">
-                  <span>Short Bio</span>
-                  <textarea name="bio" rows="4"></textarea>
-                </label>
-                <label class="full-width">
-                  <span>Update Work Photos</span>
-                  <input type="file" name="work_photo_files" accept="image/*" multiple />
-                  <small class="input-help">Leave this unchanged to keep your current 3 to 5 photos. Uploading new photos will replace the current gallery.</small>
-                </label>
-                <div class="full-width photo-preview-grid" id="dashboard-work-preview"></div>
-                <button type="submit" class="button primary full-width-button">Save Changes</button>
-              </form>
-            </section>
-          </section>
+      <div id="dashboard-container">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p>Loading your dashboard...</p>
         </div>
-      </section>
+      </div>
     </main>
   </div>
 
   <script src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js"></script>
-  <script src="/js/main.js"></script>
-  <footer class="site-footer">
-    <div class="container">
-      <div class="footer-row">
-        <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
-        <div class="footer-links">
-          <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
-          <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
-          <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
-        </div>
-      </div>
-    </div>
-  </footer>
+  <script>
+    // IMMEDIATE AUTH CHECK - This runs before anything else
+    (function() {
+      const token = localStorage.getItem('hirelocal_auth_token');
+      const providerData = localStorage.getItem('hirelocal_provider');
+      
+      console.log('Auth check - Token exists:', !!token);
+      console.log('Auth check - Provider data exists:', !!providerData);
+      
+      if (!token) {
+        console.log('No token found, redirecting to login');
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      // Verify token is still valid
+      fetch('/api/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(res => res.json()).then(data => {
+        if (!data.success) {
+          console.log('Token invalid, clearing and redirecting');
+          localStorage.removeItem('hirelocal_auth_token');
+          localStorage.removeItem('hirelocal_provider');
+          window.location.href = '/login.html';
+        } else {
+          console.log('Token valid, loading dashboard');
+          loadDashboard(data.provider);
+        }
+      }).catch(err => {
+        console.error('Auth check error:', err);
+        document.getElementById('dashboard-container').innerHTML = `
+          <div class="error-message" style="margin: 2rem;">
+            Unable to connect to server. Please check your internet connection and <a href="/login.html">try again</a>.
+          </div>
+        `;
+      });
+    })();
+    
+    async function loadDashboard(provider) {
+      const container = document.getElementById('dashboard-container');
+      const subscription = provider.subscription || {};
+      
+      // Update stored provider
+      localStorage.setItem('hirelocal_provider', JSON.stringify(provider));
+      
+      // Render dashboard HTML
+      container.innerHTML = `
+        <section class="section dashboard-page">
+          <div class="container">
+            <div class="dashboard-hero">
+              <div>
+                <p class="eyebrow">Provider dashboard</p>
+                <h1>Your business snapshot</h1>
+                <p>Keep an eye on how your public profile is performing and whether your account is verified.</p>
+              </div>
+              <div class="dashboard-chip" id="dashboard-badge">
+                ${subscription.isActive ? `Active until ${new Date(subscription.expiryDate).toLocaleDateString()}` : 'Profile hidden until renewal'}
+              </div>
+            </div>
+
+            <div class="stats-strip" id="dashboard-stats">
+              <article class="metric-card">
+                <span class="mini-label">Plan</span>
+                <strong id="dash-plan">${provider.plan || 'Free'}</strong>
+              </article>
+              <article class="metric-card">
+                <span class="mini-label">Verification</span>
+                <strong id="dash-verified" style="color: ${provider.verified ? '#2e7d32' : '#ed6c02'}">${provider.verified ? 'Verified' : 'Pending'}</strong>
+              </article>
+              <article class="metric-card">
+                <span class="mini-label">Profile Views</span>
+                <strong id="dash-views">${provider.views || 0}</strong>
+              </article>
+              <article class="metric-card">
+                <span class="mini-label">Reviews</span>
+                <strong id="dash-reviews">${provider.review_count || 0}</strong>
+              </article>
+            </div>
+
+            <div class="dashboard-grid">
+              <section class="glass-card profile-summary" id="dashboard-profile">
+                <h2>Profile Summary</h2>
+                ${provider.photo ? `<img src="${provider.photo}" alt="Profile" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin-bottom:1rem;">` : ''}
+                <p><strong>Name:</strong> ${escapeHtml(provider.name || 'Not set')}</p>
+                <p><strong>Email:</strong> ${escapeHtml(provider.email)}</p>
+                <p><strong>Phone:</strong> ${escapeHtml(provider.phone || 'Not set')}</p>
+                <p><strong>WhatsApp:</strong> ${escapeHtml(provider.whatsapp || 'Not set')}</p>
+                <p><strong>Skill:</strong> ${escapeHtml(provider.skill || 'Not set')}</p>
+                <p><strong>Location:</strong> ${escapeHtml([provider.city, provider.lga, provider.state].filter(Boolean).join(', ') || 'Not set')}</p>
+                <p><strong>Bio:</strong> ${escapeHtml(provider.bio || 'Not set')}</p>
+              </section>
+
+              <aside class="dashboard-side-column">
+                <section class="glass-card subscription-card" id="subscription-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">Subscription</p>
+                      <h2>Visibility plan</h2>
+                    </div>
+                    <span class="pill ${subscription.isActive ? 'success' : 'warm'}" id="subscription-status">${subscription.status || 'Expired'}</span>
+                  </div>
+                  <div class="subscription-meta-grid">
+                    <article class="subscription-meta-card">
+                      <span class="mini-label">Expiry Date</span>
+                      <strong id="subscription-expiry">${subscription.expiryDate ? new Date(subscription.expiryDate).toLocaleDateString() : 'Not set'}</strong>
+                    </article>
+                    <article class="subscription-meta-card">
+                      <span class="mini-label">Days Remaining</span>
+                      <strong id="subscription-days">${subscription.daysRemaining || 0}</strong>
+                    </article>
+                  </div>
+                  <p class="subscription-note" id="subscription-note">
+                    ${subscription.isActive ? 'Your profile is visible to customers.' : 'Your profile is currently hidden. Renew to become visible again.'}
+                  </p>
+                  <div class="subscription-warning hidden" id="subscription-warning">${subscription.warningMessage || ''}</div>
+                  <button type="button" class="button primary full-width-button" id="subscription-renew-button">
+                    Renew Now - ₦1,000
+                  </button>
+                  <div class="status-box" id="subscription-payment-status" aria-live="polite"></div>
+                </section>
+
+                <section class="glass-card side-card">
+                  <p class="eyebrow">Growth checklist</p>
+                  <h2>How to improve your profile</h2>
+                  <ul class="plain-list">
+                    <li>Add a profile picture to build trust with clients.</li>
+                    <li>Write a strong bio that describes your best services.</li>
+                    <li>Use a clear phone number and WhatsApp contact.</li>
+                    <li>Upload 3-5 work photos to showcase your skills.</li>
+                    <li>Ask happy clients to leave reviews on your profile.</li>
+                  </ul>
+                </section>
+              </aside>
+            </div>
+
+            <div class="dashboard-grid secondary-grid">
+              <section class="glass-card">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Your work photos</p>
+                    <h2>Portfolio gallery</h2>
+                  </div>
+                </div>
+                <div id="dashboard-gallery" class="photo-gallery">
+                  ${(provider.work_photos || []).map(photo => `
+                    <div class="photo-tile"><img src="${photo}" alt="Work photo"></div>
+                  `).join('') || '<p>No work photos uploaded yet.</p>'}
+                </div>
+              </section>
+
+              <section class="glass-card">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Update profile</p>
+                    <h2>Edit your listing</h2>
+                  </div>
+                </div>
+                <form id="dashboard-update-form" class="form-grid">
+                  <label class="full-width">
+                    <span>Profile Picture</span>
+                    <input type="file" name="profile_picture" accept="image/*" />
+                    <small class="input-help">Upload a profile picture to appear on your public profile.</small>
+                  </label>
+                  <div class="full-width single-photo-preview" id="dashboard-photo-preview"></div>
+
+                  <label><span>Phone Number</span><input type="tel" name="phone" value="${escapeHtml(provider.phone || '')}" /></label>
+                  <label><span>WhatsApp Number</span><input type="tel" name="whatsapp" value="${escapeHtml(provider.whatsapp || '')}" /></label>
+                  <label><span>Skill</span><input type="text" name="skill" value="${escapeHtml(provider.skill || '')}" required /></label>
+                  <label><span>Category</span><input type="text" name="category" value="${escapeHtml(provider.category || '')}" /></label>
+                  <label><span>State</span><input type="text" name="state" value="${escapeHtml(provider.state || '')}" required /></label>
+                  <label><span>LGA</span><input type="text" name="lga" value="${escapeHtml(provider.lga || '')}" /></label>
+                  <label><span>City / Area</span><input type="text" name="city" value="${escapeHtml(provider.city || '')}" /></label>
+                  <label class="full-width"><span>Short Bio</span><textarea name="bio" rows="4">${escapeHtml(provider.bio || '')}</textarea></label>
+                  <label class="full-width">
+                    <span>Update Work Photos</span>
+                    <input type="file" name="work_photo_files" accept="image/*" multiple />
+                    <small class="input-help">Leave this unchanged to keep your current 3 to 5 photos.</small>
+                  </label>
+                  <div class="full-width photo-preview-grid" id="dashboard-work-preview"></div>
+                  <button type="submit" class="button primary full-width-button">Save Changes</button>
+                </form>
+              </section>
+            </div>
+          </div>
+        </section>
+      `;
+      
+      // Attach event listeners
+      attachEventListeners(provider);
+    }
+    
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+    
+    function attachEventListeners(provider) {
+      const token = localStorage.getItem('hirelocal_auth_token');
+      
+      // Logout handler
+      const logoutBtn = document.getElementById('logout-link');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          localStorage.removeItem('hirelocal_auth_token');
+          localStorage.removeItem('hirelocal_provider');
+          window.location.href = '/login.html';
+        });
+      }
+      
+      // Renew subscription handler
+      const renewBtn = document.getElementById('subscription-renew-button');
+      const paymentStatus = document.getElementById('subscription-payment-status');
+      
+      if (renewBtn) {
+        renewBtn.addEventListener('click', async () => {
+          if (!window.Korapay) {
+            paymentStatus.innerHTML = '<span style="color:red;">Payment system not loaded. Please refresh.</span>';
+            return;
+          }
+          
+          renewBtn.disabled = true;
+          paymentStatus.innerHTML = '<span style="color:blue;">Initializing payment...</span>';
+          
+          try {
+            const response = await fetch('/api/payment/initialize', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.payment.checkoutUrl) {
+              window.location.href = data.payment.checkoutUrl;
+            } else {
+              paymentStatus.innerHTML = '<span style="color:red;">Unable to initialize payment.</span>';
+              renewBtn.disabled = false;
+            }
+          } catch (err) {
+            console.error('Payment error:', err);
+            paymentStatus.innerHTML = '<span style="color:red;">Payment error. Please try again.</span>';
+            renewBtn.disabled = false;
+          }
+        });
+      }
+      
+      // Update profile form
+      const updateForm = document.getElementById('dashboard-update-form');
+      if (updateForm) {
+        updateForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          
+          const formData = new FormData(updateForm);
+          const payload = {
+            phone: formData.get('phone'),
+            whatsapp: formData.get('whatsapp'),
+            skill: formData.get('skill'),
+            category: formData.get('category'),
+            state: formData.get('state'),
+            lga: formData.get('lga'),
+            city: formData.get('city'),
+            bio: formData.get('bio')
+          };
+          
+          // Handle profile picture
+          const profilePic = formData.get('profile_picture');
+          if (profilePic && profilePic.size > 0) {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              payload.photo = reader.result;
+              await saveProfileUpdate(payload, token);
+            };
+            reader.readAsDataURL(profilePic);
+          } else {
+            await saveProfileUpdate(payload, token);
+          }
+        });
+      }
+    }
+    
+    async function saveProfileUpdate(payload, token) {
+      const statusDiv = document.getElementById('subscription-payment-status');
+      statusDiv.innerHTML = '<span style="color:blue;">Saving changes...</span>';
+      
+      try {
+        const response = await fetch('/api/provider/me', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          statusDiv.innerHTML = '<span style="color:green;">Profile updated successfully! Reloading...</span>';
+          localStorage.setItem('hirelocal_provider', JSON.stringify(result.provider));
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          statusDiv.innerHTML = `<span style="color:red;">${result.message}</span>`;
+        }
+      } catch (err) {
+        console.error('Update error:', err);
+        statusDiv.innerHTML = '<span style="color:red;">Update failed. Please try again.</span>';
+      }
+    }
+  </script>
 </body>
 </html>

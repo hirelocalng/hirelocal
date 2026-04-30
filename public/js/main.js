@@ -233,7 +233,11 @@ return null;
 };
 
 document.querySelectorAll('[data-action="logout"]').forEach((link) => {
-link.addEventListener("click", () => clearStoredProvider());
+link.addEventListener("click", (e) => {
+e.preventDefault();
+clearStoredProvider();
+window.location.href = "/login.html";
+});
 });
 document.querySelectorAll('[data-action="admin-logout"]').forEach((link) => {
 link.addEventListener("click", () => clearStoredAdmin());
@@ -550,246 +554,15 @@ loadProfile();
 }
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
+// Note: Dashboard now has its own standalone script in dashboard.html
+// This section is kept minimal to avoid conflicts
 if (page === "dashboard") {
-const panel = document.getElementById("dashboard-profile");
-const badge = document.getElementById("dashboard-badge");
-const gallery = document.getElementById("dashboard-gallery");
-const updateForm = document.getElementById("dashboard-update-form");
-const workPreview = document.getElementById("dashboard-work-preview");
-const subscriptionStatus = document.getElementById("subscription-status");
-const subscriptionExpiry = document.getElementById("subscription-expiry");
-const subscriptionDays = document.getElementById("subscription-days");
-const subscriptionNote = document.getElementById("subscription-note");
-const subscriptionWarning = document.getElementById("subscription-warning");
-const renewButton = document.getElementById("subscription-renew-button");
-const paymentStatus = document.getElementById("subscription-payment-status");
-const photoInput = updateForm?.elements?.namedItem("profile_picture");
-const photoPreview = document.getElementById("dashboard-photo-preview");
-
-let currentProvider = null;
-let paymentConfig = null;
-let pendingPhoto = null;
-
-if (photoInput && photoPreview) {
-photoInput.addEventListener("change", async () => {
-try {
-const [dataUrl] = await readFilesAsDataUrls(photoInput.files);
-if (dataUrl) {
-pendingPhoto = dataUrl;
-photoPreview.innerHTML = `<article class="photo-tile single"> <img src="${dataUrl}" alt="New profile photo preview" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /> <span>New photo (not saved yet)</span> </article>`;
+// Quick check to ensure user is logged in
+const token = getStoredProviderToken();
+const provider = getStoredProvider();
+if (!token || !provider) {
+window.location.href = "/login.html";
 }
-} catch (error) {
-photoPreview.innerHTML = `<div class="empty-state">Unable to preview photo.</div>`;
-}
-});
-}
-
-const dashboardUploader = setupMultiImageUploader(
-updateForm?.elements?.namedItem("work_photo_files"),
-workPreview,
-{ maxFiles: 5, addLabel: "Add work photo" }
-);
-
-const populateDashboardForm = (provider) => {
-if (!updateForm) return;
-["phone", "whatsapp", "skill", "category", "state", "lga", "city", "bio"].forEach((fieldName) => {
-const field = updateForm.elements.namedItem(fieldName);
-if (field) field.value = provider[fieldName] || "";
-});
-};
-
-const renderSubscriptionDetails = (provider, payment) => {
-const subscription = getSubscriptionState(provider);
-const amount = payment?.amount || 1000;
-if (subscriptionStatus) {
-subscriptionStatus.className = `pill ${subscription.isActive ? "success" : "warm"}`;
-subscriptionStatus.textContent = subscription.status;
-}
-if (subscriptionExpiry) subscriptionExpiry.textContent = formatDateLabel(subscription.expiryDate);
-if (subscriptionDays) subscriptionDays.textContent = String(subscription.daysRemaining || 0);
-if (subscriptionNote) {
-subscriptionNote.textContent = subscription.isActive
-? "Your profile is visible in search results while this subscription stays active."
-: "Your profile is currently hidden from public search until payment is confirmed.";
-}
-if (subscriptionWarning) {
-if (subscription.warning) {
-subscriptionWarning.textContent = subscription.warningMessage;
-subscriptionWarning.classList.remove("hidden");
-} else {
-subscriptionWarning.textContent = "";
-subscriptionWarning.classList.add("hidden");
-}
-}
-if (renewButton) {
-renewButton.textContent = `Renew Now - ₦${amount.toLocaleString("en-NG")}`;
-renewButton.disabled = !payment?.enabled;
-if (!payment?.enabled) setTextStatus(paymentStatus, "Korapay keys are not configured yet.", "error");
-}
-if (badge) {
-badge.textContent = subscription.isActive
-? `Active until ${formatDateLabel(subscription.expiryDate)}`
-: "Profile hidden until renewal";
-}
-};
-
-const loadDashboard = async () => {
-if (!panel) return;
-try {
-const { response, data } = await requestJson("/api/me");
-if (!response.ok || !data.success) {
-clearStoredProvider();
-panel.innerHTML = `<h2>Profile Summary</h2><div class="empty-state">Login first to load your provider dashboard.</div>`;
-return;
-}
-const provider = data.provider;
-currentProvider = provider;
-paymentConfig = data.payment || null;
-setStoredProvider(provider);
-
-document.getElementById("dash-plan").textContent = provider.plan || "Free";
-document.getElementById("dash-verified").textContent = provider.verified ? "Verified" : "Pending";
-document.getElementById("dash-views").textContent = provider.views || "0";
-document.getElementById("dash-reviews").textContent = provider.review_count || "0";
-
-const avatarHtml = provider.photo && provider.photo.trim() !== ""
-? `<img src="${provider.photo}" alt="Profile photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;margin-bottom:0.75rem;border:2px solid var(--brand);" />`
-: `<div class="avatar-dot" style="width:80px;height:80px;font-size:1.75rem;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#e5e7eb;margin-bottom:0.75rem;">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
-
-panel.innerHTML = `
-${avatarHtml}
-<h2>${escapeHtml(provider.name)}</h2>
-<p><strong>Skill:</strong> ${escapeHtml(provider.skill || "Not set")}</p>
-<p><strong>Category:</strong> ${escapeHtml(provider.category || "General")}</p>
-<p><strong>Location:</strong> ${escapeHtml(formatLocation(provider) || "Location pending")}</p>
-<p><strong>Bio:</strong> ${escapeHtml(provider.bio || "No bio added yet.")}</p>
-<p><strong>Email:</strong> ${escapeHtml(provider.email || "-")}</p>
-<p><strong>Phone:</strong> ${escapeHtml(provider.phone || "-")}${provider.whatsapp ? ` | <strong>WhatsApp:</strong> ${escapeHtml(provider.whatsapp)}` : ""}</p>
-<p><strong>ID Type:</strong> ${escapeHtml(provider.id_type || "Not supplied")}</p>
-<p><strong>Subscription:</strong> ${escapeHtml(getSubscriptionState(provider).status)}</p>
-`;
-
-if (photoPreview && !pendingPhoto) {
-photoPreview.innerHTML = provider.photo && provider.photo.trim() !== ""
-? `<article class="photo-tile single"><img src="${provider.photo}" alt="Current profile photo" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /><span>Current photo</span></article>`
-: `<div class="empty-state">No profile photo yet.</div>`;
-}
-
-populateDashboardForm(provider);
-renderPhotoGallery(gallery, provider.work_photos || [], {
-showCaption: true,
-emptyMessage: "Upload 3 to 5 work photos to build your portfolio."
-});
-dashboardUploader.setPhotos(provider.work_photos || []);
-renderSubscriptionDetails(provider, paymentConfig);
-if (paymentConfig?.enabled) clearTextStatus(paymentStatus);
-} catch (error) {
-panel.innerHTML = `<h2>Profile Summary</h2><div class="empty-state">Unable to load dashboard data.</div>`;
-}
-};
-
-renewButton?.addEventListener("click", async () => {
-if (!currentProvider) { setTextStatus(paymentStatus, "Reload the dashboard before starting payment.", "error"); return; }
-if (!window.Korapay || typeof window.Korapay.initialize !== "function") {
-setTextStatus(paymentStatus, "Korapay checkout is unavailable right now.", "error"); return;
-}
-renewButton.disabled = true;
-setTextStatus(paymentStatus, "Preparing Korapay checkout...", "info");
-try {
-const { data } = await requestJson("/api/payment/initialize", {
-method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
-});
-if (!data.success) {
-setTextStatus(paymentStatus, data.message || "Unable to start payment.", "error");
-renewButton.disabled = !paymentConfig?.enabled;
-return;
-}
-const payment = data.payment;
-window.Korapay.initialize({
-key: payment.publicKey,
-reference: payment.merchantReference,
-amount: payment.amount,
-currency: "NGN",
-customer: payment.customer,
-onClose: () => { setTextStatus(paymentStatus, "Payment window closed.", "info"); renewButton.disabled = !paymentConfig?.enabled; },
-onFailed: () => { setTextStatus(paymentStatus, "Payment was not completed.", "error"); renewButton.disabled = !paymentConfig?.enabled; },
-onSuccess: async (result) => {
-setTextStatus(paymentStatus, "Verifying payment...", "info");
-try {
-const verifyResponse = await requestJson("/api/payment/verify", {
-method: "POST", headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ reference: result.reference, payment_reference: payment.merchantReference })
-});
-if (verifyResponse.data.success) {
-currentProvider = verifyResponse.data.provider;
-setStoredProvider(currentProvider);
-renderSubscriptionDetails(currentProvider, paymentConfig);
-setTextStatus(paymentStatus, "Subscription renewed successfully.", "success");
-await loadDashboard();
-} else {
-setTextStatus(paymentStatus, verifyResponse.data.message || "Unable to verify payment.", "error");
-}
-} catch (error) {
-setTextStatus(paymentStatus, "Unable to verify payment right now.", "error");
-} finally {
-renewButton.disabled = !paymentConfig?.enabled;
-}
-}
-});
-} catch (error) {
-setTextStatus(paymentStatus, "Unable to start payment right now.", "error");
-renewButton.disabled = !paymentConfig?.enabled;
-}
-});
-
-updateForm?.addEventListener("submit", async (event) => {
-event.preventDefault();
-if (!currentProvider) { setStatus(updateForm, "Login again to update your profile.", "error"); return; }
-setStatus(updateForm, "Saving your profile changes...", "info");
-const formData = new FormData(updateForm);
-const workPhotos = dashboardUploader.getPhotos();
-const photoError = validatePhotoCount(workPhotos);
-if (photoError) { setStatus(updateForm, photoError, "error"); return; }
-
-const payload = {
-phone: formData.get("phone"),
-whatsapp: formData.get("whatsapp"),
-skill: formData.get("skill"),
-category: formData.get("category"),
-state: formData.get("state"),
-lga: formData.get("lga"),
-city: formData.get("city"),
-bio: formData.get("bio"),
-work_photos: workPhotos
-};
-
-if (pendingPhoto) {
-payload.photo = pendingPhoto;
-} else if (currentProvider.photo) {
-payload.photo = currentProvider.photo;
-}
-
-try {
-const { data } = await requestJson("/api/provider/me", {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(payload)
-});
-if (data.success) {
-currentProvider = data.provider;
-pendingPhoto = null;
-setStoredProvider(data.provider);
-setStatus(updateForm, data.message || "Profile updated successfully.", "success");
-loadDashboard();
-} else {
-setStatus(updateForm, data.message || "Unable to update your profile.", "error");
-}
-} catch (error) {
-setStatus(updateForm, "Unable to update your profile right now.", "error");
-}
-});
-
-loadDashboard();
 }
 
 // ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
@@ -997,10 +770,35 @@ setStatus(form, "Unable to create account right now.", "error");
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 if (page === "login") {
 const form = document.getElementById("login-form");
+const errorDiv = document.getElementById("login-error");
+const loginBtn = form?.querySelector('button[type="submit"]');
+
+// Check if already logged in
+const existingToken = getStoredProviderToken();
+if (existingToken) {
+fetch('/api/me', {
+headers: { 'Authorization': `Bearer ${existingToken}` }
+}).then(res => res.json()).then(data => {
+if (data.success) {
+window.location.href = '/dashboard.html';
+} else {
+clearStoredProvider();
+}
+}).catch(() => {});
+}
+
 form?.addEventListener("submit", async (event) => {
 event.preventDefault();
-clearStatus(form);
+if (errorDiv) {
+errorDiv.style.display = 'none';
+errorDiv.textContent = '';
+}
 setStatus(form, "Logging you in...", "info");
+if (loginBtn) {
+loginBtn.textContent = "Logging in...";
+loginBtn.disabled = true;
+}
+
 const payload = Object.fromEntries(new FormData(form).entries());
 try {
 const { data } = await requestJson("/api/login", {
@@ -1013,9 +811,23 @@ setStatus(form, "Login successful. Redirecting...", "success");
 window.location.href = "/dashboard.html";
 } else {
 setStatus(form, data.message || "Login failed.", "error");
+if (errorDiv) {
+errorDiv.style.display = 'block';
+errorDiv.textContent = data.message || "Invalid email or password.";
+errorDiv.style.background = '#fee';
+errorDiv.style.color = '#c33';
+}
+if (loginBtn) {
+loginBtn.textContent = "Login";
+loginBtn.disabled = false;
+}
 }
 } catch (error) {
 setStatus(form, "Unable to login right now.", "error");
+if (loginBtn) {
+loginBtn.textContent = "Login";
+loginBtn.disabled = false;
+}
 }
 });
 }
