@@ -5,11 +5,11 @@ const adminTokenStorageKey = "hirelocal_admin_token";
 
 const escapeHtml = (value = "") =>
 String(value).replace(/[&<>"']/g, (char) => ({
-"&": "&amp;",
-"<": "&lt;",
-">": "&gt;",
-'"': "&quot;",
-"'": "&#39;"
+"&": "&",
+"<": "<",
+">": ">",
+'"': """,
+"'": "'"
 }[char]));
 
 const getStoredProvider = () => {
@@ -38,25 +38,30 @@ form.appendChild(box);
 }
 return box;
 };
+
 const setStatus = (form, message, type = "info") => {
 const box = attachStatusBox(form);
 if (!box) return;
 box.className = `status-box ${type}`;
 box.textContent = message;
 };
+
 const clearStatus = (form) => {
 const box = form?.querySelector(".status-box");
 if (box) { box.className = "status-box"; box.textContent = ""; }
 };
+
 const setInlineStatus = (container, message, type = "info") => {
 if (!container) return;
 container.innerHTML = `<div class="status-box ${type}">${escapeHtml(message)}</div>`;
 };
+
 const setTextStatus = (element, message, type = "info") => {
 if (!element) return;
 element.className = `status-box ${type}`;
 element.textContent = message;
 };
+
 const clearTextStatus = (element) => {
 if (!element) return;
 element.className = "status-box";
@@ -75,15 +80,18 @@ return date.toLocaleDateString("en-NG", { year: "numeric", month: "long", day: "
 
 const getSubscriptionState = (provider = {}) =>
 provider.subscription || {
-status: "Expired", isActive: false, expiryDate: null,
-daysRemaining: 0, warning: true,
+status: "Expired",
+isActive: false,
+expiryDate: null,
+daysRemaining: 0,
+warning: true,
 warningMessage: "Your profile is offline until you renew your subscription."
 };
 
 const createRatingStars = (ratingValue) => {
 const rating = Math.max(0, Math.min(5, Number(ratingValue) || 0));
 const rounded = Math.round(rating);
-return `${"\u2605".repeat(rounded)}${"\u2606".repeat(5 - rounded)}`;
+return `${"★".repeat(rounded)}${"☆".repeat(5 - rounded)}`;
 };
 
 const renderProviderAvatar = (provider, size = "normal") => {
@@ -136,7 +144,7 @@ if (!photos.length) {
 container.innerHTML = `<div class="empty-state">${escapeHtml(options.emptyMessage || "No photos uploaded yet.")}</div>`;
 return;
 }
-container.innerHTML = photos.map((photo, index) => `<article class="photo-tile"> <img src="${photo}" alt="${escapeHtml(options.altPrefix || "Provider photo")} ${index + 1}" /> ${options.showCaption ? `<span>Photo ${index + 1}</span>` : ""} </article>`).join("");
+container.innerHTML = photos.map((photo, index) => `<article class="photo-tile"> <img src="${photo}" alt="${escapeHtml(options.altPrefix || "Provider photo")} ${index + 1}" /> ${options.showCaption ?`<span>Photo ${index + 1}</span>`: ""} </article>`).join("");
 };
 
 const requestJson = async (url, options = {}, authMode = "provider") => {
@@ -191,7 +199,10 @@ const maxFiles = options.maxFiles || 5;
 const addLabel = options.addLabel || "Add photo";
 let photos = Array.isArray(options.initialPhotos) ? [...options.initialPhotos] : [];
 const sync = () => renderUploaderSlots(previewContainer, photos, input, maxFiles, addLabel);
-previewContainer.addEventListener("remove-photo", (event) => { photos.splice(event.detail.index, 1); sync(); });
+previewContainer.addEventListener("remove-photo", (event) => {
+photos.splice(event.detail.index, 1);
+sync();
+});
 input.addEventListener("change", async () => {
 try {
 const newPhotos = await readFilesAsDataUrls(input.files);
@@ -243,7 +254,7 @@ document.querySelectorAll('[data-action="admin-logout"]').forEach((link) => {
 link.addEventListener("click", () => clearStoredAdmin());
 });
 
-// ─── HOME ────────────────────────────────────────────────────────────────────
+// HOME
 if (page === "home") {
 const form = document.getElementById("quick-search-form");
 const featuredProviders = document.getElementById("featured-providers");
@@ -252,6 +263,7 @@ form?.addEventListener("submit", (event) => {
 event.preventDefault();
 window.location.href = `/search.html?${new URLSearchParams(new FormData(form)).toString()}`;
 });
+
 document.querySelectorAll("[data-quick-category]").forEach((button) => {
 button.addEventListener("click", () => {
 if (!form) return;
@@ -266,42 +278,16 @@ try {
 const { data } = await requestJson("/api/search", {}, false);
 const providers = (data.providers || []).slice(0, 10);
 if (!providers.length) return;
-featuredProviders.innerHTML = providers.map((provider) => `
-<article class="provider-horizontal-card">
-<div class="provider-card-avatar">
-${provider.photo && provider.photo.trim() !== "" 
-? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" />`
-: `<div class="avatar-placeholder-small">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`
+featuredProviders.innerHTML = providers.map((provider) => `<article class="provider-horizontal-card"> <div class="provider-card-avatar"> ${provider.photo && provider.photo.trim() !== "" ?`<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" />`:`<div class="avatar-placeholder-small">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`} </div> <div class="provider-card-info"> <div class="provider-card-header"> <div class="provider-name-rating"> <h3 class="provider-name">${escapeHtml(provider.name)}</h3> <div class="provider-rating"> ${createRatingStars(provider.rating)} <span>(${provider.review_count || 0})</span> </div> </div> ${provider.verified ? '<span class="verified-badge">✓ Verified</span>' : ""} </div> <div class="provider-location"> 📍 ${escapeHtml(formatLocation(provider) || "Location pending")} </div> <p class="provider-bio">${escapeHtml(provider.bio || "No bio added yet.")}</p> <div class="provider-tags"> <span class="provider-tag">${escapeHtml(provider.skill || "Skilled worker")}</span> <span class="provider-tag">${escapeHtml(provider.category || "General")}</span> </div> <button class="view-profile-btn" onclick="window.location.href='/profile.html?id=${provider.id}'">View Profile →</button> </div> </article>`).join("");
+} catch (error) {
+console.error("Error loading providers:", error);
 }
-</div>
-<div class="provider-card-info">
-<div class="provider-card-header">
-<div class="provider-name-rating">
-<h3 class="provider-name">${escapeHtml(provider.name)}</h3>
-<div class="provider-rating">
-${createRatingStars(provider.rating)} <span>(${provider.review_count || 0})</span>
-</div>
-</div>
-${provider.verified ? '<span class="verified-badge">✓ Verified</span>' : ''}
-</div>
-<div class="provider-location">
-📍 ${escapeHtml(formatLocation(provider) || "Location pending")}
-</div>
-<p class="provider-bio">${escapeHtml(provider.bio || "No bio added yet.")}</p>
-<div class="provider-tags">
-<span class="provider-tag">${escapeHtml(provider.skill || "Skilled worker")}</span>
-<span class="provider-tag">${escapeHtml(provider.category || "General")}</span>
-</div>
-<button class="view-profile-btn" onclick="window.location.href='/profile.html?id=${provider.id}'">View Profile →</button>
-</div>
-</article>
-`).join("");
-} catch (error) { console.error("Error loading providers:", error); }
 };
+
 loadFeaturedProviders();
 }
 
-// ─── SEARCH ──────────────────────────────────────────────────────────────────
+// SEARCH
 if (page === "search") {
 const results = document.getElementById("search-results");
 const form = document.getElementById("search-form");
@@ -315,14 +301,12 @@ if (searchSummary) searchSummary.textContent = "No matching active providers fou
 return;
 }
 results.innerHTML = providers.map(createResultCard).join("");
-if (searchSummary) {
-searchSummary.textContent = `${providers.length} active provider(s) found.`;
-}
+if (searchSummary) searchSummary.textContent = `${providers.length} active provider(s) found.`;
 };
 
 const loadProviders = async (searchParams) => {
 try {
-if (searchSummary) searchSummary.textContent = "Searching providers...";
+if (searchSummary) searchSummary.textContent = "Searching providers…";
 const { data } = await requestJson(`/api/search?${searchParams.toString()}`, {}, false);
 renderProviders(data.success ? data.providers || [] : []);
 } catch (error) {
@@ -337,6 +321,7 @@ const params = new URLSearchParams(new FormData(form));
 window.history.replaceState({}, "", `/search.html?${params.toString()}`);
 loadProviders(params);
 });
+
 document.querySelectorAll("[data-search-chip]").forEach((button) => {
 button.addEventListener("click", () => {
 if (!form) return;
@@ -353,7 +338,7 @@ if (field && params.get(key)) field.value = params.get(key);
 loadProviders(params);
 }
 
-// ─── PROFILE ─────────────────────────────────────────────────────────────────
+// PROFILE
 if (page === "profile") {
 const params = new URLSearchParams(window.location.search);
 const providerId = params.get("id");
@@ -362,12 +347,10 @@ const reviewsList = document.getElementById("reviews-list");
 const reviewForm = document.getElementById("review-form");
 const contactLinks = document.getElementById("provider-contact-links");
 const gallery = document.getElementById("provider-gallery");
-
 const editSection = document.getElementById("edit-profile-section");
 const editForm = document.getElementById("edit-profile-form");
 const editPictureInput = document.getElementById("edit-profile-picture-input");
 const editPreview = document.getElementById("edit-profile-preview");
-
 let editPendingPhoto = null;
 
 if (editPictureInput && editPreview) {
@@ -390,25 +373,16 @@ const token = getStoredProviderToken();
 const section = document.getElementById("edit-profile-section");
 const formEl = document.getElementById("edit-profile-form");
 const previewEl = document.getElementById("edit-profile-preview");
-
 if (!stored || !token || !section) return;
-
 if (String(stored.id) === String(loadedProviderId)) {
 section.classList.add("owner-visible");
 section.style.display = "block";
-
 const nameInput = formEl?.elements?.namedItem("name");
 const skillInput = formEl?.elements?.namedItem("skill");
 if (nameInput) nameInput.value = stored.name || "";
 if (skillInput) skillInput.value = stored.skill || "";
-
 if (previewEl && stored.photo && stored.photo.trim() !== "" && !editPendingPhoto) {
-previewEl.innerHTML = `
-<article class="photo-tile single">
-<img src="${stored.photo}" alt="Current profile picture" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" />
-<span>Current photo</span>
-</article>
-`;
+previewEl.innerHTML = `<article class="photo-tile single"> <img src="${stored.photo}" alt="Current profile picture" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /> <span>Current photo</span> </article>`;
 }
 }
 };
@@ -421,11 +395,10 @@ if (!stored || !token) {
 setStatus(editForm, "You must be logged in to edit your profile.", "error");
 return;
 }
-
-setStatus(editForm, "Saving your profile changes...", "info");
-
+setStatus(editForm, "Saving your profile changes…", "info");
 const formData = new FormData(editForm);
 const payload = {
+name: formData.get("name") || stored.name || "",
 phone: stored.phone || null,
 whatsapp: stored.whatsapp || null,
 skill: formData.get("skill") || stored.skill || "",
@@ -436,20 +409,17 @@ city: stored.city || null,
 bio: stored.bio || null,
 work_photos: stored.work_photos || []
 };
-
 if (editPendingPhoto) {
 payload.photo = editPendingPhoto;
 } else if (stored.photo) {
 payload.photo = stored.photo;
 }
-
 try {
 const { data } = await requestJson("/api/provider/me", {
 method: "PUT",
 headers: { "Content-Type": "application/json" },
 body: JSON.stringify(payload)
 });
-
 if (data.success) {
 editPendingPhoto = null;
 setStoredProvider(data.provider);
@@ -480,8 +450,7 @@ const location = formatLocation(provider) || "Location not set";
 if (profile) {
 const avatarHtml = provider.photo && provider.photo.trim() !== ""
 ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)} profile photo" style="width:120px;height:120px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 1rem;border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.15);" />`
-: `<div class="avatar-placeholder" style="width:120px;height:120px;font-size:2rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;border-radius:50%;background:linear-gradient(135deg, var(--accent), var(--brand));color:white;font-weight:bold;">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
-
+: `<div class="avatar-placeholder" style="width:120px;height:120px;font-size:2rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--brand));color:white;font-weight:bold;">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
 profile.innerHTML = `
 ${avatarHtml}
 <div class="profile-main-copy">
@@ -507,7 +476,7 @@ if (contactLinks) {
 const links = [];
 if (provider.phone) links.push(`<a class="button secondary" href="tel:${escapeHtml(provider.phone)}">Call Provider</a>`);
 if (provider.whatsapp) {
-links.push(`<a class="button tertiary" href="https://wa.me/${String(provider.whatsapp).replace(/\D/g, '').replace(/^0/, '234')}" target="_blank" rel="noreferrer">WhatsApp</a>`);
+links.push(`<a class="button tertiary" href="https://wa.me/${String(provider.whatsapp).replace(/\D/g, "").replace(/^0/, "234")}" target="_blank" rel="noreferrer">WhatsApp</a>`);
 }
 contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct contact details available yet.</div>`;
 }
@@ -529,7 +498,7 @@ if (reviewsList) reviewsList.innerHTML = `<div class="empty-state">Unable to loa
 
 reviewForm?.addEventListener("submit", async (event) => {
 event.preventDefault();
-setStatus(reviewForm, "Submitting review...", "info");
+setStatus(reviewForm, "Submitting review…", "info");
 const payload = Object.fromEntries(new FormData(reviewForm).entries());
 try {
 const { data } = await requestJson("/api/review", {
@@ -553,11 +522,8 @@ setStatus(reviewForm, "Unable to submit review right now.", "error");
 loadProfile();
 }
 
-// ─── DASHBOARD ───────────────────────────────────────────────────────────────
-// Note: Dashboard now has its own standalone script in dashboard.html
-// This section is kept minimal to avoid conflicts
+// DASHBOARD
 if (page === "dashboard") {
-// Quick check to ensure user is logged in
 const token = getStoredProviderToken();
 const provider = getStoredProvider();
 if (!token || !provider) {
@@ -565,21 +531,23 @@ window.location.href = "/login.html";
 }
 }
 
-// ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
+// ADMIN LOGIN
 if (page === "admin-login") {
 const form = document.getElementById("admin-login-form");
 form?.addEventListener("submit", async (event) => {
 event.preventDefault();
 clearStatus(form);
-setStatus(form, "Opening admin panel...", "info");
+setStatus(form, "Opening admin panel…", "info");
 const payload = Object.fromEntries(new FormData(form).entries());
 try {
 const { data } = await requestJson("/api/admin/login", {
-method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(payload)
 }, false);
 if (data.success) {
 setStoredAdminToken(data.token);
-setStatus(form, "Admin login successful. Redirecting...", "success");
+setStatus(form, "Admin login successful. Redirecting…", "success");
 window.location.href = "/admin.html";
 } else {
 setStatus(form, data.message || "Admin login failed.", "error");
@@ -590,62 +558,39 @@ setStatus(form, "Unable to login right now.", "error");
 });
 }
 
-// ─── ADMIN ───────────────────────────────────────────────────────────────────
+// ADMIN
 if (page === "admin") {
 const list = document.getElementById("admin-providers");
 const statusContainer = document.getElementById("admin-status");
 const refreshButton = document.getElementById("admin-refresh-button");
 
 const renderAdminProviders = (providers = []) => {
-if (!providers.length) { list.innerHTML = `<div class="empty-state">No providers found yet.</div>`; return; }
-list.innerHTML = providers.map((provider) => `
-<article class="result-card admin-card">
-<div class="result-card-head">
-<div style="display:flex;align-items:center;gap:0.75rem;">
-${provider.photo && provider.photo.trim() !== ""
-? `<img src="${provider.photo}" alt="Profile photo" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />`
-: `<span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</span>`
+if (!providers.length) {
+list.innerHTML = `<div class="empty-state">No providers found yet.</div>`;
+return;
 }
-<div>
-<p class="eyebrow">${provider.verified ? "Verified provider" : "Awaiting review"}</p>
-<h3>${escapeHtml(provider.name)}</h3>
-</div>
-</div>
-<span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span>
-</div>
-<p><strong>Email:</strong> ${escapeHtml(provider.email)}</p>
-<p><strong>Skill:</strong> ${escapeHtml(provider.skill || "-")}</p>
-<p><strong>Location:</strong> ${escapeHtml(formatLocation(provider) || provider.state || "-")}</p>
-<p><strong>Subscription:</strong> ${escapeHtml(getSubscriptionState(provider).status)} until ${escapeHtml(formatDateLabel(getSubscriptionState(provider).expiryDate))}</p>
-<p><strong>ID Type:</strong> ${escapeHtml(provider.id_type || "Not provided")}</p>
-<p>${escapeHtml(provider.bio || "No bio added yet.")}</p>
-<div class="admin-media-block">
-<strong>Verification ID Photo</strong>
-<div class="single-photo-preview">
-${provider.id_photo ? `<article class="photo-tile single"><img src="${provider.id_photo}" alt="Verification ID" /></article>` : `<div class="empty-state">No ID photo uploaded.</div>`}
-</div>
-</div>
-<div class="admin-media-block">
-<strong>Work Photos</strong>
-<div class="photo-gallery compact">
-${(provider.work_photos || []).map((photo, index) => `<article class="photo-tile"><img src="${photo}" alt="Work sample ${index + 1}" /></article>`).join("") || `<div class="empty-state">No work photos uploaded.</div>`}
-</div>
-</div>
-${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`}
-<button class="button secondary full admin-delete" data-id="${provider.id}" style="background:rgba(166,63,56,0.12);color:#a63f38;margin-top:0.5rem;">Delete Provider</button>
-</article>
-`).join("");
+list.innerHTML = providers.map((provider) => `<article class="result-card admin-card"> <div class="result-card-head"> <div style="display:flex;align-items:center;gap:0.75rem;"> ${provider.photo && provider.photo.trim() !== "" ?`<img src="${provider.photo}" alt="Profile photo" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />`:`<span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</span>`} <div> <p class="eyebrow">${provider.verified ? "Verified provider" : "Awaiting review"}</p> <h3>${escapeHtml(provider.name)}</h3> </div> </div> <span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span> </div> <p><strong>Email:</strong> ${escapeHtml(provider.email)}</p> <p><strong>Skill:</strong> ${escapeHtml(provider.skill || "-")}</p> <p><strong>Location:</strong> ${escapeHtml(formatLocation(provider) || provider.state || "-")}</p> <p><strong>Subscription:</strong> ${escapeHtml(getSubscriptionState(provider).status)} until ${escapeHtml(formatDateLabel(getSubscriptionState(provider).expiryDate))}</p> <p><strong>ID Type:</strong> ${escapeHtml(provider.id_type || "Not provided")}</p> <p>${escapeHtml(provider.bio || "No bio added yet.")}</p> <div class="admin-media-block"> <strong>Verification ID Photo</strong> <div class="single-photo-preview"> ${provider.id_photo ?`<article class="photo-tile single"><img src="${provider.id_photo}" alt="Verification ID" /></article>`:`<div class="empty-state">No ID photo uploaded.</div>`} </div> </div> <div class="admin-media-block"> <strong>Work Photos</strong> <div class="photo-gallery compact"> ${(provider.work_photos || []).map((photo, index) => `<article class="photo-tile"><img src="${photo}" alt="Work sample ${index + 1}" /></article>`).join("") || `<div class="empty-state">No work photos uploaded.</div>`} </div> </div> ${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`} <button class="button secondary full admin-delete" data-id="${provider.id}" style="background:rgba(166,63,56,0.12);color:#a63f38;margin-top:0.5rem;">Delete Provider</button> </article>`).join("");
 
 list.querySelectorAll(".admin-verify").forEach((button) => {
 button.addEventListener("click", async () => {
 button.disabled = true;
 try {
 const { data } = await requestJson(`/api/admin/verify/${button.dataset.id}`, {
-method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({})
 }, "admin");
-if (data.success) { setInlineStatus(statusContainer, "Provider verified successfully.", "success"); loadAdminProviders(); }
-else { setInlineStatus(statusContainer, data.message || "Unable to verify provider.", "error"); button.disabled = false; }
-} catch (error) { setInlineStatus(statusContainer, "Unable to verify provider right now.", "error"); button.disabled = false; }
+if (data.success) {
+setInlineStatus(statusContainer, "Provider verified successfully.", "success");
+loadAdminProviders();
+} else {
+setInlineStatus(statusContainer, data.message || "Unable to verify provider.", "error");
+button.disabled = false;
+}
+} catch (error) {
+setInlineStatus(statusContainer, "Unable to verify provider right now.", "error");
+button.disabled = false;
+}
 });
 });
 
@@ -655,18 +600,27 @@ if (!confirm("Are you sure you want to delete this provider? This cannot be undo
 button.disabled = true;
 try {
 const { data } = await requestJson(`/api/admin/delete/${button.dataset.id}`, {
-method: "DELETE", headers: { "Content-Type": "application/json" }
+method: "DELETE",
+headers: { "Content-Type": "application/json" }
 }, "admin");
-if (data.success) { setInlineStatus(statusContainer, "Provider deleted.", "success"); loadAdminProviders(); }
-else { setInlineStatus(statusContainer, data.message || "Unable to delete provider.", "error"); button.disabled = false; }
-} catch (error) { setInlineStatus(statusContainer, "Unable to delete provider right now.", "error"); button.disabled = false; }
+if (data.success) {
+setInlineStatus(statusContainer, "Provider deleted.", "success");
+loadAdminProviders();
+} else {
+setInlineStatus(statusContainer, data.message || "Unable to delete provider.", "error");
+button.disabled = false;
+}
+} catch (error) {
+setInlineStatus(statusContainer, "Unable to delete provider right now.", "error");
+button.disabled = false;
+}
 });
 });
 };
 
 const loadAdminProviders = async () => {
 if (!getStoredAdminToken()) { window.location.href = "/admin-login.html"; return; }
-setInlineStatus(statusContainer, "Loading providers...", "info");
+setInlineStatus(statusContainer, "Loading providers…", "info");
 try {
 const { response, data } = await requestJson("/api/admin/providers", {}, "admin");
 if (!response.ok || !data.success) {
@@ -687,7 +641,7 @@ refreshButton?.addEventListener("click", loadAdminProviders);
 loadAdminProviders();
 }
 
-// ─── REGISTER ─────────────────────────────────────────────────────────────────
+// REGISTER
 if (page === "register") {
 const form = document.getElementById("register-form");
 const workPreview = document.getElementById("register-work-preview");
@@ -697,9 +651,22 @@ const idPhotoInput = form?.elements?.namedItem("id_photo_file");
 const profileInput = form?.elements?.namedItem("profile_picture");
 const profilePreview = document.getElementById("register-profile-preview");
 
-const registerUploader = setupMultiImageUploader(workPhotoInput, workPreview, {
-maxFiles: 5, addLabel: "Add work photo"
+let collectedWorkPhotos = [];
+
+if (workPhotoInput && workPreview) {
+workPhotoInput.addEventListener("change", async () => {
+try {
+const newPhotos = await readFilesAsDataUrls(workPhotoInput.files);
+collectedWorkPhotos = newPhotos.slice(0, 5);
+workPreview.innerHTML = collectedWorkPhotos.map((p, i) => `<article class="photo-tile"> <img src="${p}" alt="Work photo ${i + 1}" /> <span>Photo ${i + 1}</span> </article>`).join("");
+} catch (error) {
+workPreview.innerHTML = `<div class="empty-state">Unable to preview photos.</div>`;
+}
 });
+}
+
+const registerUploader = { getPhotos: () => collectedWorkPhotos };
+
 bindFilePreview(idPhotoInput, idPreview, false);
 
 if (profileInput && profilePreview) {
@@ -718,7 +685,7 @@ profilePreview.innerHTML = `<div class="empty-state">Unable to preview profile p
 form?.addEventListener("submit", async (event) => {
 event.preventDefault();
 clearStatus(form);
-setStatus(form, "Creating your provider account...", "info");
+setStatus(form, "Creating your provider account…", "info");
 
 const formData = new FormData(form);
 const workPhotos = registerUploader.getPhotos();
@@ -767,20 +734,19 @@ setStatus(form, "Unable to create account right now.", "error");
 });
 }
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
+// LOGIN
 if (page === "login") {
 const form = document.getElementById("login-form");
 const errorDiv = document.getElementById("login-error");
 const loginBtn = form?.querySelector('button[type="submit"]');
 
-// Check if already logged in
 const existingToken = getStoredProviderToken();
 if (existingToken) {
-fetch('/api/me', {
-headers: { 'Authorization': `Bearer ${existingToken}` }
-}).then(res => res.json()).then(data => {
+fetch("/api/me", {
+headers: { Authorization: `Bearer ${existingToken}` }
+}).then((res) => res.json()).then((data) => {
 if (data.success) {
-window.location.href = '/dashboard.html';
+window.location.href = "/dashboard.html";
 } else {
 clearStoredProvider();
 }
@@ -789,20 +755,16 @@ clearStoredProvider();
 
 form?.addEventListener("submit", async (event) => {
 event.preventDefault();
-if (errorDiv) {
-errorDiv.style.display = 'none';
-errorDiv.textContent = '';
-}
-setStatus(form, "Logging you in...", "info");
-if (loginBtn) {
-loginBtn.textContent = "Logging in...";
-loginBtn.disabled = true;
-}
+if (errorDiv) { errorDiv.style.display = "none"; errorDiv.textContent = ""; }
+setStatus(form, "Logging you in…", "info");
+if (loginBtn) { loginBtn.textContent = "Logging in…"; loginBtn.disabled = true; }
 
 const payload = Object.fromEntries(new FormData(form).entries());
 try {
 const { data } = await requestJson("/api/login", {
-method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(payload)
 }, false);
 if (data.success) {
 setStoredProvider(data.provider);
@@ -812,22 +774,14 @@ window.location.href = "/dashboard.html";
 } else {
 setStatus(form, data.message || "Login failed.", "error");
 if (errorDiv) {
-errorDiv.style.display = 'block';
+errorDiv.style.display = "block";
 errorDiv.textContent = data.message || "Invalid email or password.";
-errorDiv.style.background = '#fee';
-errorDiv.style.color = '#c33';
 }
-if (loginBtn) {
-loginBtn.textContent = "Login";
-loginBtn.disabled = false;
-}
+if (loginBtn) { loginBtn.textContent = "Login"; loginBtn.disabled = false; }
 }
 } catch (error) {
 setStatus(form, "Unable to login right now.", "error");
-if (loginBtn) {
-loginBtn.textContent = "Login";
-loginBtn.disabled = false;
-}
+if (loginBtn) { loginBtn.textContent = "Login"; loginBtn.disabled = false; }
 }
 });
 }
