@@ -45,27 +45,18 @@ console.warn('TOKEN_SECRET is not set. Add it in .env before deployment.');
 app.disable('x-powered-by');
 
 // ============================================================
-// SECURITY HEADERS — updated to include Content-Security-Policy
+// SECURITY HEADERS
 // ============================================================
 app.use((req, res, next) => {
-// Prevent clickjacking
 res.setHeader('X-Frame-Options', 'DENY');
-
-// Prevent MIME-type sniffing
 res.setHeader('X-Content-Type-Options', 'nosniff');
-
-// Control referrer info sent to third parties
 res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-// Disable unused browser features
 res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-// Force HTTPS in production (with preload flag for extra protection)
 if (isProduction) {
 res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 }
 
-// Content Security Policy — tailored for HireLocal (Korapay payments + base64 photos)
 res.setHeader('Content-Security-Policy',
 "default-src 'self'; " +
 "script-src 'self' 'unsafe-inline' https://js.korapay.com; " +
@@ -79,7 +70,6 @@ res.setHeader('Content-Security-Policy',
 
 next();
 });
-// ============================================================
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '20mb' }));
@@ -307,7 +297,7 @@ subscription: getSubscriptionSnapshot(provider)
 
 async function sendEmail(to, subject, html) {
 try {
-await resend.emails.send({ from: 'HireLocal <onboarding@resend.dev>', to, subject, html });
+await resend.emails.send({ from: 'HireLocal <hello@hirelocal.ng>', to, subject, html });
 } catch (err) {
 console.error('Email error:', err.message);
 }
@@ -343,8 +333,6 @@ await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS id_photo TEXT`)
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMP`);
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS name_changed_at TIMESTAMP`);
-
-// FIX: Force photo column to TEXT type (fixes "value too long" error)
 await pool.query(`ALTER TABLE providers ALTER COLUMN photo TYPE TEXT`).catch(e => console.log('Photo column already TEXT or error:', e.message));
 
 await pool.query(`UPDATE providers SET subscription_expiry = NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days' WHERE subscription_expiry IS NULL`);
@@ -353,6 +341,17 @@ await pool.query(`CREATE TABLE IF NOT EXISTS reviews ( id SERIAL PRIMARY KEY, pr
 await pool.query(`CREATE TABLE IF NOT EXISTS payments ( id SERIAL PRIMARY KEY, provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE, reference VARCHAR(120) UNIQUE NOT NULL, transaction_reference VARCHAR(120), amount INTEGER NOT NULL, status VARCHAR(30) DEFAULT 'pending', raw_response JSONB, paid_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW() )`);
 await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_provider_id ON payments(provider_id)`);
 await pool.query(`CREATE TABLE IF NOT EXISTS search_logs ( id SERIAL PRIMARY KEY, category VARCHAR(100), state VARCHAR(100), query VARCHAR(100), results_count INTEGER, searched_at TIMESTAMP DEFAULT NOW() )`);
+
+// NEW: Password reset table
+await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(100) NOT NULL,
+  token VARCHAR(500) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(email)
+)`);
+
 console.log('Tables created successfully');
 } catch (err) {
 console.error('Table creation error:', err.message);
@@ -374,6 +373,9 @@ console.error('Subscription cleanup error:', error.message);
 createTables().then(() => deactivateExpiredProviders());
 setInterval(() => { deactivateExpiredProviders(); }, CLEANUP_INTERVAL_MS);
 
+// ============================================================
+// REGISTER ENDPOINT
+// ============================================================
 app.post('/api/register', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 
@@ -391,9 +393,7 @@ const bio = sanitizeOptionalText(req.body.bio);
 const idType = sanitizeText(req.body.id_type);
 const idPhoto = sanitizeText(req.body.id_photo);
 const workPhotos = parsePhotoArray(req.body.work_photos);
-const photo = req.body.photo && isImageDataUrl(req.body.photo)
-? req.body.photo
-: null;
+const photo = req.body.photo && isImageDataUrl(req.body.photo) ? req.body.photo : null;
 
 if (!name || !email || !password || !skill || !state) {
 return res.status(400).json({ success: false, message: 'Please fill all required fields.' });
@@ -431,6 +431,9 @@ res.status(400).json({ success: false, message });
 }
 });
 
+// ============================================================
+// LOGIN ENDPOINT
+// ============================================================
 app.post('/api/login', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const email = sanitizeText(req.body.email).toLowerCase();
@@ -464,6 +467,139 @@ res.status(500).json({ success: false, message: 'Server error.' });
 }
 });
 
+// ============================================================
+// FORGOT PASSWORD ENDPOINT
+// ============================================================
+app.post('/api/forgot-password', async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+
+const email = sanitizeText(req.body.email).toLowerCase();
+
+if (!email) {
+return res.status(400).json({ success: false, message: 'Email address is required.' });
+}
+
+try {
+const userResult = await pool.query('SELECT id, name FROM providers WHERE email = $1', [email]);
+
+if (userResult.rows.length === 0) {
+return res.json({
+success: true,
+message: 'If an account exists with that email, you will receive a password reset link.'
+});
+}
+
+const user = userResult.rows[0];
+const resetToken = crypto.randomBytes(32).toString('hex');
+const resetLink = `https://hirelocal.ng/reset-password.html?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+await pool.query(
+`INSERT INTO password_resets (email, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')
+ON CONFLICT (email) DO UPDATE SET token = $2, expires_at = NOW() + INTERVAL '1 hour'`,
+[email, resetToken]
+);
+
+const subject = 'Reset Your HireLocal Password';
+const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+  .container { max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }
+  .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+  .content { padding: 20px; }
+  .button { display: inline-block; background: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+  .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; border-top: 1px solid #ddd; }
+  .warning { background: #fff3cd; padding: 10px; border-radius: 5px; font-size: 12px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h2>Password Reset Request</h2></div>
+<div class="content">
+<p>Hello ${user.name},</p>
+<p>We received a request to reset your HireLocal account password.</p>
+<p style="text-align: center;"><a href="${resetLink}" class="button">Reset Password</a></p>
+<p>Or copy and paste this link into your browser:</p>
+<p style="word-break: break-all; font-size: 12px;">${resetLink}</p>
+<div class="warning"><strong>⚠️ This link expires in 1 hour.</strong><br>If you didn't request this, please ignore this email.</div>
+</div>
+<div class="footer"><p>HireLocal - Connecting customers with local professionals</p><p><a href="https://hirelocal.ng">hirelocal.ng</a></p></div>
+</div>
+</body>
+</html>
+`;
+
+await sendEmail(email, subject, html);
+console.log(`Password reset email sent to: ${email}`);
+
+res.json({
+success: true,
+message: 'If an account exists with that email, you will receive a password reset link.'
+});
+
+} catch (err) {
+console.error('Forgot password error:', err.message);
+res.status(500).json({ success: false, message: 'Unable to process request. Please try again.' });
+}
+});
+
+// ============================================================
+// RESET PASSWORD ENDPOINT
+// ============================================================
+app.post('/api/reset-password', async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+
+const { email, token, new_password } = req.body;
+
+if (!email || !token || !new_password) {
+return res.status(400).json({ success: false, message: 'Missing required fields.' });
+}
+
+if (new_password.length < 6) {
+return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+}
+
+try {
+const resetResult = await pool.query(
+'SELECT * FROM password_resets WHERE email = $1 AND token = $2 AND expires_at > NOW()',
+[email.toLowerCase(), token]
+);
+
+if (resetResult.rows.length === 0) {
+return res.status(400).json({ success: false, message: 'Invalid or expired reset link. Please request a new one.' });
+}
+
+const hashedPassword = await hashPassword(new_password);
+await pool.query('UPDATE providers SET password = $1 WHERE email = $2', [hashedPassword, email.toLowerCase()]);
+await pool.query('DELETE FROM password_resets WHERE email = $1', [email.toLowerCase()]);
+
+const subject = 'Your HireLocal Password Has Been Reset';
+const html = `
+<div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+<h2 style="color: #4CAF50;">Password Reset Successful</h2>
+<p>Your HireLocal account password has been successfully changed.</p>
+<p>If you did not make this change, please contact support immediately.</p>
+<p><a href="https://hirelocal.ng/login.html" style="background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Login Now</a></p>
+<hr>
+<p style="font-size: 12px; color: #777;">HireLocal Nigeria</p>
+</div>
+`;
+
+await sendEmail(email, subject, html);
+
+res.json({ success: true, message: 'Password has been reset successfully. You can now login with your new password.' });
+
+} catch (err) {
+console.error('Reset password error:', err.message);
+res.status(500).json({ success: false, message: 'Unable to reset password. Please try again.' });
+}
+});
+
+// ============================================================
+// ADMIN LOGIN
+// ============================================================
 app.post('/api/admin/login', (req, res) => {
 const secret = sanitizeText(req.body.secret);
 if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
@@ -473,14 +609,15 @@ const token = signToken({ role: 'admin' }, 60 * 60 * 12);
 res.json({ success: true, token });
 });
 
+// ============================================================
+// GET CURRENT PROVIDER
+// ============================================================
 app.get('/api/me', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const auth = getProviderAuth(req);
 if (!auth?.sub) return res.status(401).json({ success: false, message: 'Unauthorized' });
 try {
-const result = await pool.query(
-`SELECT ${ownerProviderColumns} FROM providers WHERE id = $1`, [auth.sub]
-);
+const result = await pool.query(`SELECT ${ownerProviderColumns} FROM providers WHERE id = $1`, [auth.sub]);
 if (result.rows.length === 0) {
 return res.status(404).json({ success: false, message: 'Provider not found.' });
 }
@@ -498,6 +635,9 @@ res.status(500).json({ success: false, message: err.message });
 }
 });
 
+// ============================================================
+// UPDATE PROVIDER PROFILE
+// ============================================================
 app.put('/api/provider/me', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const auth = getProviderAuth(req);
@@ -513,9 +653,7 @@ const lga = sanitizeOptionalText(req.body.lga);
 const city = sanitizeOptionalText(req.body.city);
 const bio = sanitizeOptionalText(req.body.bio);
 const workPhotos = parsePhotoArray(req.body.work_photos);
-const photo = req.body.photo && isImageDataUrl(req.body.photo)
-? req.body.photo
-: undefined;
+const photo = req.body.photo && isImageDataUrl(req.body.photo) ? req.body.photo : undefined;
 
 if (!skill || !state) {
 return res.status(400).json({ success: false, message: 'Skill and state are required.' });
@@ -524,10 +662,7 @@ const photoError = validateWorkPhotos(workPhotos);
 if (photoError) return res.status(400).json({ success: false, message: photoError });
 
 try {
-const current = await pool.query(
-'SELECT name, name_changed_at FROM providers WHERE id = $1',
-[auth.sub]
-);
+const current = await pool.query('SELECT name, name_changed_at FROM providers WHERE id = $1', [auth.sub]);
 if (current.rows.length === 0) {
 return res.status(404).json({ success: false, message: 'Provider not found.' });
 }
@@ -547,43 +682,36 @@ message: `You can only change your name once every 30 days. You can change it ag
 }
 
 const finalName = nameIsChanging ? newName : currentName;
-
 let query, params;
 
 if (photo !== undefined && nameIsChanging) {
 query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb, photo=$11 WHERE id=$12 RETURNING ${ownerProviderColumns}`;
-params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio,
-JSON.stringify(workPhotos), photo, auth.sub];
-
+params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), photo, auth.sub];
 } else if (photo !== undefined && !nameIsChanging) {
 query = `UPDATE providers SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8, work_photos=$9::jsonb, photo=$10 WHERE id=$11 RETURNING ${ownerProviderColumns}`;
-params = [phone, whatsapp, skill, category, state, lga, city, bio,
-JSON.stringify(workPhotos), photo, auth.sub];
-
+params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), photo, auth.sub];
 } else if (photo === undefined && nameIsChanging) {
 query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb WHERE id=$11 RETURNING ${ownerProviderColumns}`;
-params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio,
-JSON.stringify(workPhotos), auth.sub];
-
+params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), auth.sub];
 } else {
 query = `UPDATE providers SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8, work_photos=$9::jsonb WHERE id=$10 RETURNING ${ownerProviderColumns}`;
-params = [phone, whatsapp, skill, category, state, lga, city, bio,
-JSON.stringify(workPhotos), auth.sub];
+params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), auth.sub];
 }
 
 const result = await pool.query(query, params);
 res.json({
 success: true,
 provider: enrichProvider(result.rows[0]),
-message: nameIsChanging
-? 'Profile updated. Your name has been changed — you can change it again in 30 days.'
-: 'Profile updated successfully.'
+message: nameIsChanging ? 'Profile updated. Your name has been changed — you can change it again in 30 days.' : 'Profile updated successfully.'
 });
 } catch (err) {
 res.status(400).json({ success: false, message: err.message });
 }
 });
 
+// ============================================================
+// SEARCH PROVIDERS
+// ============================================================
 app.get('/api/search', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const category = sanitizeText(req.query.category);
@@ -601,10 +729,7 @@ sql += ' ORDER BY verified DESC, plan DESC, rating DESC, created_at DESC';
 try {
 const result = await pool.query(sql, params);
 try {
-await pool.query(
-`INSERT INTO search_logs (category, state, query, results_count) VALUES ($1,$2,$3,$4)`,
-[category || null, state || null, query || null, result.rows.length]
-);
+await pool.query(`INSERT INTO search_logs (category, state, query, results_count) VALUES ($1,$2,$3,$4)`, [category || null, state || null, query || null, result.rows.length]);
 } catch (logErr) { console.error('Search log error:', logErr.message); }
 res.json({ success: true, providers: result.rows.map(enrichProvider) });
 } catch (err) {
@@ -612,6 +737,9 @@ res.status(500).json({ success: false, message: err.message });
 }
 });
 
+// ============================================================
+// GET PROVIDER BY ID
+// ============================================================
 app.get('/api/provider/:id', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const providerId = Number(req.params.id);
@@ -619,27 +747,20 @@ if (!Number.isInteger(providerId)) {
 return res.status(400).json({ success: false, message: 'Invalid provider id.' });
 }
 try {
-const providerResult = await pool.query(
-`UPDATE providers SET views = views + 1 WHERE id = $1 RETURNING ${publicProviderColumns}`,
-[providerId]
-);
+const providerResult = await pool.query(`UPDATE providers SET views = views + 1 WHERE id = $1 RETURNING ${publicProviderColumns}`, [providerId]);
 if (providerResult.rows.length === 0) {
 return res.status(404).json({ success: false, message: 'Provider not found.' });
 }
-const reviews = await pool.query(
-`SELECT id, provider_id, reviewer_name, rating, comment, date FROM reviews WHERE provider_id = $1 ORDER BY date DESC`,
-[providerId]
-);
-res.json({
-success: true,
-provider: enrichProvider(providerResult.rows[0]),
-reviews: reviews.rows
-});
+const reviews = await pool.query(`SELECT id, provider_id, reviewer_name, rating, comment, date FROM reviews WHERE provider_id = $1 ORDER BY date DESC`, [providerId]);
+res.json({ success: true, provider: enrichProvider(providerResult.rows[0]), reviews: reviews.rows });
 } catch (err) {
 res.status(500).json({ success: false, message: err.message });
 }
 });
 
+// ============================================================
+// ADD REVIEW
+// ============================================================
 app.post('/api/review', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const providerId = Number(req.body.provider_id);
@@ -654,13 +775,8 @@ const providerCheck = await pool.query('SELECT id FROM providers WHERE id = $1',
 if (providerCheck.rows.length === 0) {
 return res.status(404).json({ success: false, message: 'Provider not found.' });
 }
-await pool.query(
-'INSERT INTO reviews (provider_id, reviewer_name, rating, comment) VALUES ($1,$2,$3,$4)',
-[providerId, reviewerName, rating, comment]
-);
-const ratingResult = await pool.query(
-'SELECT AVG(rating) AS avg, COUNT(*) AS count FROM reviews WHERE provider_id = $1', [providerId]
-);
+await pool.query('INSERT INTO reviews (provider_id, reviewer_name, rating, comment) VALUES ($1,$2,$3,$4)', [providerId, reviewerName, rating, comment]);
+const ratingResult = await pool.query('SELECT AVG(rating) AS avg, COUNT(*) AS count FROM reviews WHERE provider_id = $1', [providerId]);
 const avg = Number.parseFloat(ratingResult.rows[0].avg || 0).toFixed(2);
 const count = Number(ratingResult.rows[0].count || 0);
 await pool.query('UPDATE providers SET rating=$1, review_count=$2 WHERE id=$3', [avg, count, providerId]);
@@ -670,6 +786,9 @@ res.status(400).json({ success: false, message: err.message });
 }
 });
 
+// ============================================================
+// PAYMENT INITIALIZE
+// ============================================================
 app.post('/api/payment/initialize', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 if (!korapaySecretKey || !korapayPublicKey) return sendKorapayUnavailable(res);
@@ -697,10 +816,7 @@ metadata: { providerId: String(provider.id), plan: 'subscription-renewal' }
 if (!response.ok || !payload.status) {
 return res.status(400).json({ success: false, message: payload.message || 'Unable to initialize Korapay checkout.' });
 }
-await pool.query(
-`INSERT INTO payments (provider_id, reference, amount, status, raw_response) VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT (reference) DO UPDATE SET raw_response = EXCLUDED.raw_response`,
-[provider.id, paymentReference, SUBSCRIPTION_AMOUNT_NGN, 'initialized', JSON.stringify(payload.data || {})]
-);
+await pool.query(`INSERT INTO payments (provider_id, reference, amount, status, raw_response) VALUES ($1,$2,$3,$4,$5::jsonb) ON CONFLICT (reference) DO UPDATE SET raw_response = EXCLUDED.raw_response`, [provider.id, paymentReference, SUBSCRIPTION_AMOUNT_NGN, 'initialized', JSON.stringify(payload.data || {})]);
 res.json({
 success: true,
 payment: {
@@ -718,6 +834,9 @@ res.status(500).json({ success: false, message: 'Unable to initialize payment ri
 }
 });
 
+// ============================================================
+// PAYMENT VERIFY
+// ============================================================
 app.post('/api/payment/verify', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 if (!korapaySecretKey || !korapayPublicKey) return sendKorapayUnavailable(res);
@@ -729,10 +848,7 @@ if (!transactionReference) {
 return res.status(400).json({ success: false, message: 'Payment reference is required.' });
 }
 try {
-const paymentLookup = await pool.query(
-`SELECT * FROM payments WHERE provider_id=$1 AND (reference=$2 OR reference=$3) ORDER BY created_at DESC LIMIT 1`,
-[auth.sub, paymentReference || transactionReference, transactionReference]
-);
+const paymentLookup = await pool.query(`SELECT * FROM payments WHERE provider_id=$1 AND (reference=$2 OR reference=$3) ORDER BY created_at DESC LIMIT 1`, [auth.sub, paymentReference || transactionReference, transactionReference]);
 if (!paymentLookup.rows.length) {
 return res.status(404).json({ success: false, message: 'Payment session not found.' });
 }
@@ -743,10 +859,7 @@ return res.json({ success: true, message: 'Payment was already verified.', provi
 }
 const { response, payload } = await callKorapay(`/charges/${encodeURIComponent(transactionReference)}`, { method: 'GET' });
 if (!response.ok || !payload.status) {
-await pool.query(
-`UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`,
-[transactionReference, 'failed', JSON.stringify(payload), paymentRecord.id]
-);
+await pool.query(`UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`, [transactionReference, 'failed', JSON.stringify(payload), paymentRecord.id]);
 return res.status(400).json({ success: false, message: payload.message || 'Unable to verify payment.' });
 }
 const korapayData = payload.data || {};
@@ -757,21 +870,12 @@ if (merchantReference !== paymentRecord.reference) {
 return res.status(400).json({ success: false, message: 'Payment reference mismatch.' });
 }
 if (korapayStatus !== 'success' || amountPaid < SUBSCRIPTION_AMOUNT_NGN) {
-await pool.query(
-`UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`,
-[transactionReference, 'failed', JSON.stringify(payload), paymentRecord.id]
-);
+await pool.query(`UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`, [transactionReference, 'failed', JSON.stringify(payload), paymentRecord.id]);
 return res.status(400).json({ success: false, message: 'Payment is not yet successful.' });
 }
 await pool.query('BEGIN');
-await pool.query(
-`UPDATE payments SET transaction_reference=$1, status='success', raw_response=$2::jsonb, paid_at=NOW() WHERE id=$3`,
-[transactionReference, JSON.stringify(payload), paymentRecord.id]
-);
-const providerUpdate = await pool.query(
-`UPDATE providers SET subscription_expiry = GREATEST(COALESCE(subscription_expiry, NOW()), NOW()) + INTERVAL '${SUBSCRIPTION_RENEWAL_DAYS} days', is_active = true WHERE id=$1 RETURNING ${ownerProviderColumns}`,
-[auth.sub]
-);
+await pool.query(`UPDATE payments SET transaction_reference=$1, status='success', raw_response=$2::jsonb, paid_at=NOW() WHERE id=$3`, [transactionReference, JSON.stringify(payload), paymentRecord.id]);
+const providerUpdate = await pool.query(`UPDATE providers SET subscription_expiry = GREATEST(COALESCE(subscription_expiry, NOW()), NOW()) + INTERVAL '${SUBSCRIPTION_RENEWAL_DAYS} days', is_active = true WHERE id=$1 RETURNING ${ownerProviderColumns}`, [auth.sub]);
 await pool.query('COMMIT');
 res.json({ success: true, message: 'Subscription renewed successfully.', provider: enrichProvider(providerUpdate.rows[0]) });
 } catch (error) {
@@ -781,6 +885,9 @@ res.status(500).json({ success: false, message: 'Unable to verify payment right 
 }
 });
 
+// ============================================================
+// ADMIN ENDPOINTS
+// ============================================================
 app.get('/api/admin/providers', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const adminAuth = getAdminAuth(req);
@@ -800,9 +907,7 @@ const providerId = Number(req.params.id);
 if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
 if (!Number.isInteger(providerId)) return res.status(400).json({ success: false, message: 'Invalid provider id.' });
 try {
-const result = await pool.query(
-`UPDATE providers SET verified=true WHERE id=$1 RETURNING ${adminProviderColumns}`, [providerId]
-);
+const result = await pool.query(`UPDATE providers SET verified=true WHERE id=$1 RETURNING ${adminProviderColumns}`, [providerId]);
 if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Provider not found.' });
 res.json({ success: true, message: 'Provider verified.', provider: enrichProvider(result.rows[0]) });
 } catch (err) {
@@ -815,9 +920,7 @@ if (!pool) return sendDatabaseUnavailable(res);
 const adminAuth = getAdminAuth(req);
 if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
 try {
-const result = await pool.query(
-`SELECT category, state, query, results_count, searched_at FROM search_logs ORDER BY searched_at DESC LIMIT 200`
-);
+const result = await pool.query(`SELECT category, state, query, results_count, searched_at FROM search_logs ORDER BY searched_at DESC LIMIT 200`);
 res.json({ success: true, searches: result.rows });
 } catch (err) {
 res.status(500).json({ success: false, message: err.message });

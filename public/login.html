@@ -3,8 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login | HireLocal</title>
+  <title>Provider Login | HireLocal Nigeria</title>
+  <meta name="description" content="Login to your HireLocal provider dashboard to manage your service profile, track views, and connect with customers." />
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    /* Additional styles for login page */
+    .error-message {
+      background: #fee;
+      color: #c33;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #c33;
+      font-size: 0.9rem;
+    }
+    
+    .success-message {
+      background: #e6f4ea;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #2e7d32;
+      font-size: 0.9rem;
+    }
+    
+    .password-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    
+    .forgot-link {
+      font-size: 0.8rem;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    
+    .forgot-link:hover {
+      text-decoration: underline;
+    }
+    
+    .loading-state {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body data-page="login">
   <div class="page-shell">
@@ -44,34 +104,150 @@
               <h2>Provider Login</h2>
               <p>Enter your account details to continue.</p>
             </div>
+            
+            <div id="login-message"></div>
+            
             <label>
               <span>Email Address</span>
-              <input type="email" name="email" required />
+              <input type="email" name="email" required autocomplete="email" placeholder="you@example.com" />
             </label>
+            
             <label>
-              <span>Password</span>
-              <input type="password" name="password" required />
+              <div class="password-row">
+                <span>Password</span>
+                <a href="/forgot-password.html" class="forgot-link">Forgot password?</a>
+              </div>
+              <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••" />
             </label>
-            <button type="submit" class="button primary full-width-button">Login</button>
-            <p class="form-note">New here? <a href="/register.html">Create a provider account</a>.</p>
+            
+            <button type="submit" class="button primary full-width-button" id="login-btn">
+              Login
+            </button>
+            
+            <p class="form-note" style="text-align: center; margin-top: 20px;">
+              New here? <a href="/register.html">Create a provider account</a>
+            </p>
+            
+            <hr style="margin: 20px 0; border-color: rgba(0,0,0,0.1);" />
+            
+            <p style="text-align: center; font-size: 0.8rem; color: #666;">
+              By logging in, you agree to our <a href="/terms.html">Terms of Service</a> and <a href="/privacy.html">Privacy Policy</a>.
+            </p>
           </form>
         </div>
       </section>
     </main>
   </div>
 
-  <script src="/js/main.js"></script><footer class="site-footer">
-  <div class="container">
-    <div class="footer-row">
-      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
-      <div class="footer-links">
-        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
-        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
-        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-row">
+        <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+          <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+          <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+        </div>
       </div>
     </div>
-  </div>
-</footer>
+  </footer>
 
+  <script>
+    // Login form handler
+    const form = document.getElementById('login-form');
+    const loginBtn = document.getElementById('login-btn');
+    const messageDiv = document.getElementById('login-message');
+    
+    // Check if already logged in
+    const token = localStorage.getItem('providerToken');
+    if (token) {
+      // Verify token is still valid
+      fetch('/api/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          window.location.href = '/dashboard.html';
+        } else {
+          localStorage.removeItem('providerToken');
+          localStorage.removeItem('providerData');
+        }
+      }).catch(() => {});
+    }
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = form.email.value.trim();
+      const password = form.password.value;
+      
+      // Clear previous messages
+      messageDiv.innerHTML = '';
+      
+      // Validate
+      if (!email || !password) {
+        showMessage('Please enter both email and password.', 'error');
+        return;
+      }
+      
+      if (!email.includes('@')) {
+        showMessage('Please enter a valid email address.', 'error');
+        return;
+      }
+      
+      // Show loading state
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="spinner"></span> Logging in...';
+      form.classList.add('loading-state');
+      
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Store authentication data
+          localStorage.setItem('providerToken', data.token);
+          localStorage.setItem('providerData', JSON.stringify(data.provider));
+          
+          showMessage('Login successful! Redirecting to dashboard...', 'success');
+          
+          // Redirect after short delay
+          setTimeout(() => {
+            window.location.href = '/dashboard.html';
+          }, 1000);
+        } else {
+          showMessage(data.message || 'Invalid email or password. Please try again.', 'error');
+          resetButton();
+        }
+      } catch (err) {
+        console.error('Login error:', err);
+        showMessage('Unable to connect to server. Please check your internet connection and try again.', 'error');
+        resetButton();
+      }
+    });
+    
+    function showMessage(message, type) {
+      messageDiv.innerHTML = `<div class="${type === 'error' ? 'error-message' : 'success-message'}">${message}</div>`;
+    }
+    
+    function resetButton() {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = 'Login';
+      form.classList.remove('loading-state');
+    }
+    
+    // Add demo/test account helper (remove in production)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('demo') === '1') {
+      showMessage('Demo mode: Use any valid account to login.', 'success');
+    }
+  </script>
 </body>
 </html>
