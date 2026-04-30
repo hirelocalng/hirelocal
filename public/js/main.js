@@ -5,11 +5,11 @@ const adminTokenStorageKey = "hirelocal_admin_token";
 
 const escapeHtml = (value = "") =>
 String(value).replace(/[&<>"']/g, (char) => ({
-"&": "&",
-"<": "<",
-">": ">",
-'"': """,
-"'": "'"
+"&": "&amp;",
+"<": "&lt;",
+">": "&gt;",
+'"': "&quot;",
+"'": "&#39;"
 }[char]));
 
 const getStoredProvider = () => {
@@ -144,7 +144,7 @@ if (!photos.length) {
 container.innerHTML = `<div class="empty-state">${escapeHtml(options.emptyMessage || "No photos uploaded yet.")}</div>`;
 return;
 }
-container.innerHTML = photos.map((photo, index) => `<article class="photo-tile"> <img src="${photo}" alt="${escapeHtml(options.altPrefix || "Provider photo")} ${index + 1}" /> ${options.showCaption ?`<span>Photo ${index + 1}</span>`: ""} </article>`).join("");
+container.innerHTML = photos.map((photo, index) => `<article class="photo-tile"> <img src="${photo}" alt="${escapeHtml(options.altPrefix || "Provider photo")} ${index + 1}" /> ${options.showCaption ? `<span>Photo ${index + 1}</span>` : ""} </article>`).join("");
 };
 
 const requestJson = async (url, options = {}, authMode = "provider") => {
@@ -199,10 +199,7 @@ const maxFiles = options.maxFiles || 5;
 const addLabel = options.addLabel || "Add photo";
 let photos = Array.isArray(options.initialPhotos) ? [...options.initialPhotos] : [];
 const sync = () => renderUploaderSlots(previewContainer, photos, input, maxFiles, addLabel);
-previewContainer.addEventListener("remove-photo", (event) => {
-photos.splice(event.detail.index, 1);
-sync();
-});
+previewContainer.addEventListener("remove-photo", (event) => { photos.splice(event.detail.index, 1); sync(); });
 input.addEventListener("change", async () => {
 try {
 const newPhotos = await readFilesAsDataUrls(input.files);
@@ -254,7 +251,7 @@ document.querySelectorAll('[data-action="admin-logout"]').forEach((link) => {
 link.addEventListener("click", () => clearStoredAdmin());
 });
 
-// HOME
+// ─── HOME ────────────────────────────────────────────────────────────────────
 if (page === "home") {
 const form = document.getElementById("quick-search-form");
 const featuredProviders = document.getElementById("featured-providers");
@@ -278,16 +275,42 @@ try {
 const { data } = await requestJson("/api/search", {}, false);
 const providers = (data.providers || []).slice(0, 10);
 if (!providers.length) return;
-featuredProviders.innerHTML = providers.map((provider) => `<article class="provider-horizontal-card"> <div class="provider-card-avatar"> ${provider.photo && provider.photo.trim() !== "" ?`<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" />`:`<div class="avatar-placeholder-small">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`} </div> <div class="provider-card-info"> <div class="provider-card-header"> <div class="provider-name-rating"> <h3 class="provider-name">${escapeHtml(provider.name)}</h3> <div class="provider-rating"> ${createRatingStars(provider.rating)} <span>(${provider.review_count || 0})</span> </div> </div> ${provider.verified ? '<span class="verified-badge">✓ Verified</span>' : ""} </div> <div class="provider-location"> 📍 ${escapeHtml(formatLocation(provider) || "Location pending")} </div> <p class="provider-bio">${escapeHtml(provider.bio || "No bio added yet.")}</p> <div class="provider-tags"> <span class="provider-tag">${escapeHtml(provider.skill || "Skilled worker")}</span> <span class="provider-tag">${escapeHtml(provider.category || "General")}</span> </div> <button class="view-profile-btn" onclick="window.location.href='/profile.html?id=${provider.id}'">View Profile →</button> </div> </article>`).join("");
-} catch (error) {
-console.error("Error loading providers:", error);
+featuredProviders.innerHTML = providers.map((provider) => `
+<article class="provider-horizontal-card">
+<div class="provider-card-avatar">
+${provider.photo && provider.photo.trim() !== "" 
+? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)}" />`
+: `<div class="avatar-placeholder-small">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`
 }
+</div>
+<div class="provider-card-info">
+<div class="provider-card-header">
+<div class="provider-name-rating">
+<h3 class="provider-name">${escapeHtml(provider.name)}</h3>
+<div class="provider-rating">
+${createRatingStars(provider.rating)} <span>(${provider.review_count || 0})</span>
+</div>
+</div>
+${provider.verified ? '<span class="verified-badge">✓ Verified</span>' : ''}
+</div>
+<div class="provider-location">
+📍 ${escapeHtml(formatLocation(provider) || "Location pending")}
+</div>
+<p class="provider-bio">${escapeHtml(provider.bio || "No bio added yet.")}</p>
+<div class="provider-tags">
+<span class="provider-tag">${escapeHtml(provider.skill || "Skilled worker")}</span>
+<span class="provider-tag">${escapeHtml(provider.category || "General")}</span>
+</div>
+<button class="view-profile-btn" onclick="window.location.href='/profile.html?id=${provider.id}'">View Profile →</button>
+</div>
+</article>
+`).join("");
+} catch (error) { console.error("Error loading providers:", error); }
 };
-
 loadFeaturedProviders();
 }
 
-// SEARCH
+// ─── SEARCH ──────────────────────────────────────────────────────────────────
 if (page === "search") {
 const results = document.getElementById("search-results");
 const form = document.getElementById("search-form");
@@ -301,12 +324,14 @@ if (searchSummary) searchSummary.textContent = "No matching active providers fou
 return;
 }
 results.innerHTML = providers.map(createResultCard).join("");
-if (searchSummary) searchSummary.textContent = `${providers.length} active provider(s) found.`;
+if (searchSummary) {
+searchSummary.textContent = `${providers.length} active provider(s) found.`;
+}
 };
 
 const loadProviders = async (searchParams) => {
 try {
-if (searchSummary) searchSummary.textContent = "Searching providers…";
+if (searchSummary) searchSummary.textContent = "Searching providers...";
 const { data } = await requestJson(`/api/search?${searchParams.toString()}`, {}, false);
 renderProviders(data.success ? data.providers || [] : []);
 } catch (error) {
@@ -321,7 +346,6 @@ const params = new URLSearchParams(new FormData(form));
 window.history.replaceState({}, "", `/search.html?${params.toString()}`);
 loadProviders(params);
 });
-
 document.querySelectorAll("[data-search-chip]").forEach((button) => {
 button.addEventListener("click", () => {
 if (!form) return;
@@ -338,7 +362,7 @@ if (field && params.get(key)) field.value = params.get(key);
 loadProviders(params);
 }
 
-// PROFILE
+// ─── PROFILE ─────────────────────────────────────────────────────────────────
 if (page === "profile") {
 const params = new URLSearchParams(window.location.search);
 const providerId = params.get("id");
@@ -347,10 +371,12 @@ const reviewsList = document.getElementById("reviews-list");
 const reviewForm = document.getElementById("review-form");
 const contactLinks = document.getElementById("provider-contact-links");
 const gallery = document.getElementById("provider-gallery");
+
 const editSection = document.getElementById("edit-profile-section");
 const editForm = document.getElementById("edit-profile-form");
 const editPictureInput = document.getElementById("edit-profile-picture-input");
 const editPreview = document.getElementById("edit-profile-preview");
+
 let editPendingPhoto = null;
 
 if (editPictureInput && editPreview) {
@@ -373,16 +399,25 @@ const token = getStoredProviderToken();
 const section = document.getElementById("edit-profile-section");
 const formEl = document.getElementById("edit-profile-form");
 const previewEl = document.getElementById("edit-profile-preview");
+
 if (!stored || !token || !section) return;
+
 if (String(stored.id) === String(loadedProviderId)) {
 section.classList.add("owner-visible");
 section.style.display = "block";
+
 const nameInput = formEl?.elements?.namedItem("name");
 const skillInput = formEl?.elements?.namedItem("skill");
 if (nameInput) nameInput.value = stored.name || "";
 if (skillInput) skillInput.value = stored.skill || "";
+
 if (previewEl && stored.photo && stored.photo.trim() !== "" && !editPendingPhoto) {
-previewEl.innerHTML = `<article class="photo-tile single"> <img src="${stored.photo}" alt="Current profile picture" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /> <span>Current photo</span> </article>`;
+previewEl.innerHTML = `
+<article class="photo-tile single">
+<img src="${stored.photo}" alt="Current profile picture" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" />
+<span>Current photo</span>
+</article>
+`;
 }
 }
 };
@@ -395,10 +430,11 @@ if (!stored || !token) {
 setStatus(editForm, "You must be logged in to edit your profile.", "error");
 return;
 }
-setStatus(editForm, "Saving your profile changes…", "info");
+
+setStatus(editForm, "Saving your profile changes...", "info");
+
 const formData = new FormData(editForm);
 const payload = {
-name: formData.get("name") || stored.name || "",
 phone: stored.phone || null,
 whatsapp: stored.whatsapp || null,
 skill: formData.get("skill") || stored.skill || "",
@@ -409,17 +445,20 @@ city: stored.city || null,
 bio: stored.bio || null,
 work_photos: stored.work_photos || []
 };
+
 if (editPendingPhoto) {
 payload.photo = editPendingPhoto;
 } else if (stored.photo) {
 payload.photo = stored.photo;
 }
+
 try {
 const { data } = await requestJson("/api/provider/me", {
 method: "PUT",
 headers: { "Content-Type": "application/json" },
 body: JSON.stringify(payload)
 });
+
 if (data.success) {
 editPendingPhoto = null;
 setStoredProvider(data.provider);
@@ -450,7 +489,8 @@ const location = formatLocation(provider) || "Location not set";
 if (profile) {
 const avatarHtml = provider.photo && provider.photo.trim() !== ""
 ? `<img src="${provider.photo}" alt="${escapeHtml(provider.name)} profile photo" style="width:120px;height:120px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 1rem;border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.15);" />`
-: `<div class="avatar-placeholder" style="width:120px;height:120px;font-size:2rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--brand));color:white;font-weight:bold;">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
+: `<div class="avatar-placeholder" style="width:120px;height:120px;font-size:2rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;border-radius:50%;background:linear-gradient(135deg, var(--accent), var(--brand));color:white;font-weight:bold;">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</div>`;
+
 profile.innerHTML = `
 ${avatarHtml}
 <div class="profile-main-copy">
@@ -476,7 +516,8 @@ if (contactLinks) {
 const links = [];
 if (provider.phone) links.push(`<a class="button secondary" href="tel:${escapeHtml(provider.phone)}">Call Provider</a>`);
 if (provider.whatsapp) {
-links.push(`<a class="button tertiary" href="https://wa.me/${String(provider.whatsapp).replace(/\D/g, "").replace(/^0/, "234")}" target="_blank" rel="noreferrer">WhatsApp</a>`);
+const whatsappNumber = String(provider.whatsapp).replace(/\D/g, '').replace(/^0/, '234');
+links.push(`<a class="button tertiary" href="https://wa.me/${whatsappNumber}" target="_blank" rel="noreferrer">WhatsApp</a>`);
 }
 contactLinks.innerHTML = links.join("") || `<div class="empty-state">No direct contact details available yet.</div>`;
 }
@@ -498,7 +539,7 @@ if (reviewsList) reviewsList.innerHTML = `<div class="empty-state">Unable to loa
 
 reviewForm?.addEventListener("submit", async (event) => {
 event.preventDefault();
-setStatus(reviewForm, "Submitting review…", "info");
+setStatus(reviewForm, "Submitting review...", "info");
 const payload = Object.fromEntries(new FormData(reviewForm).entries());
 try {
 const { data } = await requestJson("/api/review", {
@@ -522,7 +563,7 @@ setStatus(reviewForm, "Unable to submit review right now.", "error");
 loadProfile();
 }
 
-// DASHBOARD
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
 if (page === "dashboard") {
 const token = getStoredProviderToken();
 const provider = getStoredProvider();
@@ -531,23 +572,21 @@ window.location.href = "/login.html";
 }
 }
 
-// ADMIN LOGIN
+// ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
 if (page === "admin-login") {
 const form = document.getElementById("admin-login-form");
 form?.addEventListener("submit", async (event) => {
 event.preventDefault();
 clearStatus(form);
-setStatus(form, "Opening admin panel…", "info");
+setStatus(form, "Opening admin panel...", "info");
 const payload = Object.fromEntries(new FormData(form).entries());
 try {
 const { data } = await requestJson("/api/admin/login", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(payload)
+method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
 }, false);
 if (data.success) {
 setStoredAdminToken(data.token);
-setStatus(form, "Admin login successful. Redirecting…", "success");
+setStatus(form, "Admin login successful. Redirecting...", "success");
 window.location.href = "/admin.html";
 } else {
 setStatus(form, data.message || "Admin login failed.", "error");
@@ -558,39 +597,62 @@ setStatus(form, "Unable to login right now.", "error");
 });
 }
 
-// ADMIN
+// ─── ADMIN ───────────────────────────────────────────────────────────────────
 if (page === "admin") {
 const list = document.getElementById("admin-providers");
 const statusContainer = document.getElementById("admin-status");
 const refreshButton = document.getElementById("admin-refresh-button");
 
 const renderAdminProviders = (providers = []) => {
-if (!providers.length) {
-list.innerHTML = `<div class="empty-state">No providers found yet.</div>`;
-return;
+if (!providers.length) { list.innerHTML = `<div class="empty-state">No providers found yet.</div>`; return; }
+list.innerHTML = providers.map((provider) => `
+<article class="result-card admin-card">
+<div class="result-card-head">
+<div style="display:flex;align-items:center;gap:0.75rem;">
+${provider.photo && provider.photo.trim() !== ""
+? `<img src="${provider.photo}" alt="Profile photo" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />`
+: `<span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</span>`
 }
-list.innerHTML = providers.map((provider) => `<article class="result-card admin-card"> <div class="result-card-head"> <div style="display:flex;align-items:center;gap:0.75rem;"> ${provider.photo && provider.photo.trim() !== "" ?`<img src="${provider.photo}" alt="Profile photo" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />`:`<span class="avatar-dot">${escapeHtml((provider.name || "HL").slice(0, 2).toUpperCase())}</span>`} <div> <p class="eyebrow">${provider.verified ? "Verified provider" : "Awaiting review"}</p> <h3>${escapeHtml(provider.name)}</h3> </div> </div> <span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span> </div> <p><strong>Email:</strong> ${escapeHtml(provider.email)}</p> <p><strong>Skill:</strong> ${escapeHtml(provider.skill || "-")}</p> <p><strong>Location:</strong> ${escapeHtml(formatLocation(provider) || provider.state || "-")}</p> <p><strong>Subscription:</strong> ${escapeHtml(getSubscriptionState(provider).status)} until ${escapeHtml(formatDateLabel(getSubscriptionState(provider).expiryDate))}</p> <p><strong>ID Type:</strong> ${escapeHtml(provider.id_type || "Not provided")}</p> <p>${escapeHtml(provider.bio || "No bio added yet.")}</p> <div class="admin-media-block"> <strong>Verification ID Photo</strong> <div class="single-photo-preview"> ${provider.id_photo ?`<article class="photo-tile single"><img src="${provider.id_photo}" alt="Verification ID" /></article>`:`<div class="empty-state">No ID photo uploaded.</div>`} </div> </div> <div class="admin-media-block"> <strong>Work Photos</strong> <div class="photo-gallery compact"> ${(provider.work_photos || []).map((photo, index) => `<article class="photo-tile"><img src="${photo}" alt="Work sample ${index + 1}" /></article>`).join("") || `<div class="empty-state">No work photos uploaded.</div>`} </div> </div> ${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`} <button class="button secondary full admin-delete" data-id="${provider.id}" style="background:rgba(166,63,56,0.12);color:#a63f38;margin-top:0.5rem;">Delete Provider</button> </article>`).join("");
+<div>
+<p class="eyebrow">${provider.verified ? "Verified provider" : "Awaiting review"}</p>
+<h3>${escapeHtml(provider.name)}</h3>
+</div>
+</div>
+<span class="pill ${provider.verified ? "success" : "warm"}">${provider.verified ? "Verified" : "Pending"}</span>
+</div>
+<p><strong>Email:</strong> ${escapeHtml(provider.email)}</p>
+<p><strong>Skill:</strong> ${escapeHtml(provider.skill || "-")}</p>
+<p><strong>Location:</strong> ${escapeHtml(formatLocation(provider) || provider.state || "-")}</p>
+<p><strong>Subscription:</strong> ${escapeHtml(getSubscriptionState(provider).status)} until ${escapeHtml(formatDateLabel(getSubscriptionState(provider).expiryDate))}</p>
+<p><strong>ID Type:</strong> ${escapeHtml(provider.id_type || "Not provided")}</p>
+<p>${escapeHtml(provider.bio || "No bio added yet.")}</p>
+<div class="admin-media-block">
+<strong>Verification ID Photo</strong>
+<div class="single-photo-preview">
+${provider.id_photo ? `<article class="photo-tile single"><img src="${provider.id_photo}" alt="Verification ID" /></article>` : `<div class="empty-state">No ID photo uploaded.</div>`}
+</div>
+</div>
+<div class="admin-media-block">
+<strong>Work Photos</strong>
+<div class="photo-gallery compact">
+${(provider.work_photos || []).map((photo, index) => `<article class="photo-tile"><img src="${photo}" alt="Work sample ${index + 1}" /></article>`).join("") || `<div class="empty-state">No work photos uploaded.</div>`}
+</div>
+</div>
+${provider.verified ? "" : `<button class="button primary full admin-verify" data-id="${provider.id}">Verify Provider</button>`}
+<button class="button secondary full admin-delete" data-id="${provider.id}" style="background:rgba(166,63,56,0.12);color:#a63f38;margin-top:0.5rem;">Delete Provider</button>
+</article>
+`).join("");
 
 list.querySelectorAll(".admin-verify").forEach((button) => {
 button.addEventListener("click", async () => {
 button.disabled = true;
 try {
 const { data } = await requestJson(`/api/admin/verify/${button.dataset.id}`, {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({})
+method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
 }, "admin");
-if (data.success) {
-setInlineStatus(statusContainer, "Provider verified successfully.", "success");
-loadAdminProviders();
-} else {
-setInlineStatus(statusContainer, data.message || "Unable to verify provider.", "error");
-button.disabled = false;
-}
-} catch (error) {
-setInlineStatus(statusContainer, "Unable to verify provider right now.", "error");
-button.disabled = false;
-}
+if (data.success) { setInlineStatus(statusContainer, "Provider verified successfully.", "success"); loadAdminProviders(); }
+else { setInlineStatus(statusContainer, data.message || "Unable to verify provider.", "error"); button.disabled = false; }
+} catch (error) { setInlineStatus(statusContainer, "Unable to verify provider right now.", "error"); button.disabled = false; }
 });
 });
 
@@ -600,27 +662,18 @@ if (!confirm("Are you sure you want to delete this provider? This cannot be undo
 button.disabled = true;
 try {
 const { data } = await requestJson(`/api/admin/delete/${button.dataset.id}`, {
-method: "DELETE",
-headers: { "Content-Type": "application/json" }
+method: "DELETE", headers: { "Content-Type": "application/json" }
 }, "admin");
-if (data.success) {
-setInlineStatus(statusContainer, "Provider deleted.", "success");
-loadAdminProviders();
-} else {
-setInlineStatus(statusContainer, data.message || "Unable to delete provider.", "error");
-button.disabled = false;
-}
-} catch (error) {
-setInlineStatus(statusContainer, "Unable to delete provider right now.", "error");
-button.disabled = false;
-}
+if (data.success) { setInlineStatus(statusContainer, "Provider deleted.", "success"); loadAdminProviders(); }
+else { setInlineStatus(statusContainer, data.message || "Unable to delete provider.", "error"); button.disabled = false; }
+} catch (error) { setInlineStatus(statusContainer, "Unable to delete provider right now.", "error"); button.disabled = false; }
 });
 });
 };
 
 const loadAdminProviders = async () => {
 if (!getStoredAdminToken()) { window.location.href = "/admin-login.html"; return; }
-setInlineStatus(statusContainer, "Loading providers…", "info");
+setInlineStatus(statusContainer, "Loading providers...", "info");
 try {
 const { response, data } = await requestJson("/api/admin/providers", {}, "admin");
 if (!response.ok || !data.success) {
@@ -641,7 +694,7 @@ refreshButton?.addEventListener("click", loadAdminProviders);
 loadAdminProviders();
 }
 
-// REGISTER
+// ─── REGISTER ─────────────────────────────────────────────────────────────────
 if (page === "register") {
 const form = document.getElementById("register-form");
 const workPreview = document.getElementById("register-work-preview");
@@ -654,87 +707,173 @@ const profilePreview = document.getElementById("register-profile-preview");
 let collectedWorkPhotos = [];
 
 if (workPhotoInput && workPreview) {
-workPhotoInput.addEventListener("change", async () => {
-try {
-const newPhotos = await readFilesAsDataUrls(workPhotoInput.files);
-collectedWorkPhotos = newPhotos.slice(0, 5);
-workPreview.innerHTML = collectedWorkPhotos.map((p, i) => `<article class="photo-tile"> <img src="${p}" alt="Work photo ${i + 1}" /> <span>Photo ${i + 1}</span> </article>`).join("");
-} catch (error) {
-workPreview.innerHTML = `<div class="empty-state">Unable to preview photos.</div>`;
-}
-});
+  workPhotoInput.addEventListener("change", async () => {
+    try {
+      const files = Array.from(workPhotoInput.files || []);
+      if (files.length > 5) {
+        alert("Maximum 5 work photos allowed.");
+        workPhotoInput.value = "";
+        return;
+      }
+      
+      const newPhotos = [];
+      for (const file of files) {
+        const dataUrl = await readFileAsDataUrl(file);
+        newPhotos.push(dataUrl);
+      }
+      
+      collectedWorkPhotos = newPhotos.slice(0, 5);
+      
+      workPreview.innerHTML = collectedWorkPhotos.map((p, i) => `
+        <article class="photo-tile">
+          <img src="${p}" alt="Work photo ${i + 1}" />
+          <span>Photo ${i + 1}</span>
+        </article>
+      `).join("");
+      
+      if (collectedWorkPhotos.length === 0) {
+        workPreview.innerHTML = '<div class="empty-state">No photos selected</div>';
+      } else if (collectedWorkPhotos.length < 3) {
+        workPreview.innerHTML += '<div style="color:#ed6c02; margin-top:0.5rem; font-size:0.85rem;">⚠️ Please add at least 3 work photos</div>';
+      }
+    } catch (error) {
+      workPreview.innerHTML = `<div class="empty-state">Unable to preview photos.</div>`;
+    }
+  });
 }
 
-const registerUploader = { getPhotos: () => collectedWorkPhotos };
-
-bindFilePreview(idPhotoInput, idPreview, false);
+if (idPhotoInput && idPreview) {
+  idPhotoInput.addEventListener("change", async () => {
+    try {
+      const files = Array.from(idPhotoInput.files || []);
+      if (files.length > 0) {
+        const dataUrl = await readFileAsDataUrl(files[0]);
+        idPreview.innerHTML = `<article class="photo-tile single"><img src="${dataUrl}" alt="ID Photo" /><span>ID Document</span></article>`;
+      } else {
+        idPreview.innerHTML = "";
+      }
+    } catch (error) {
+      idPreview.innerHTML = `<div class="empty-state">Unable to preview ID.</div>`;
+    }
+  });
+}
 
 if (profileInput && profilePreview) {
-profileInput.addEventListener("change", async () => {
-try {
-const [dataUrl] = await readFilesAsDataUrls(profileInput.files);
-if (dataUrl) {
-profilePreview.innerHTML = `<article class="photo-tile single"> <img src="${dataUrl}" alt="Profile picture preview" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /> <span>Profile picture</span> </article>`;
-}
-} catch (error) {
-profilePreview.innerHTML = `<div class="empty-state">Unable to preview profile picture.</div>`;
-}
-});
+  profileInput.addEventListener("change", async () => {
+    try {
+      const files = Array.from(profileInput.files || []);
+      if (files.length > 0) {
+        const dataUrl = await readFileAsDataUrl(files[0]);
+        profilePreview.innerHTML = `<article class="photo-tile single"><img src="${dataUrl}" alt="Profile picture preview" style="width:96px;height:96px;border-radius:50%;object-fit:cover;" /><span>Profile picture</span></article>`;
+      } else {
+        profilePreview.innerHTML = "";
+      }
+    } catch (error) {
+      profilePreview.innerHTML = `<div class="empty-state">Unable to preview profile picture.</div>`;
+    }
+  });
 }
 
 form?.addEventListener("submit", async (event) => {
-event.preventDefault();
-clearStatus(form);
-setStatus(form, "Creating your provider account…", "info");
-
-const formData = new FormData(form);
-const workPhotos = registerUploader.getPhotos();
-const idPhotos = await readFilesAsDataUrls(idPhotoInput?.files);
-const profilePhotos = profileInput?.files?.length ? await readFilesAsDataUrls(profileInput.files) : [];
-
-const photoError = validatePhotoCount(workPhotos);
-if (photoError) { setStatus(form, photoError, "error"); return; }
-if (!idPhotos.length) { setStatus(form, "Please upload a verification ID photo.", "error"); return; }
-
-const payload = {
-name: formData.get("name"),
-email: formData.get("email"),
-phone: formData.get("phone"),
-whatsapp: formData.get("whatsapp"),
-password: formData.get("password"),
-skill: formData.get("skill"),
-category: formData.get("category"),
-state: formData.get("state"),
-lga: formData.get("lga"),
-city: formData.get("city"),
-bio: formData.get("bio"),
-id_type: formData.get("id_type"),
-id_photo: idPhotos[0],
-work_photos: workPhotos,
-photo: profilePhotos[0] || null
-};
-
-try {
-const { data } = await requestJson("/api/register", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(payload)
-}, false);
-if (data.success) {
-setStoredProvider(data.provider);
-setStoredProviderToken(data.token);
-setStatus(form, "Account created successfully. Redirecting...", "success");
-window.location.href = "/dashboard.html";
-} else {
-setStatus(form, data.message || "Unable to create account.", "error");
-}
-} catch (error) {
-setStatus(form, "Unable to create account right now.", "error");
-}
+  event.preventDefault();
+  clearStatus(form);
+  setStatus(form, "Creating your provider account...", "info");
+  
+  const formData = new FormData(form);
+  const workPhotos = collectedWorkPhotos;
+  
+  let idPhotoData = null;
+  if (idPhotoInput?.files?.length) {
+    try {
+      idPhotoData = await readFileAsDataUrl(idPhotoInput.files[0]);
+    } catch (error) {
+      setStatus(form, "Error reading ID photo.", "error");
+      return;
+    }
+  }
+  
+  let profilePhotoData = null;
+  if (profileInput?.files?.length) {
+    try {
+      profilePhotoData = await readFileAsDataUrl(profileInput.files[0]);
+    } catch (error) {}
+  }
+  
+  if (workPhotos.length < 3) {
+    setStatus(form, `Please upload at least 3 work photos. You have ${workPhotos.length}.`, "error");
+    return;
+  }
+  
+  if (workPhotos.length > 5) {
+    setStatus(form, "Please upload at most 5 work photos.", "error");
+    return;
+  }
+  
+  if (!idPhotoData) {
+    setStatus(form, "Please upload a verification ID photo.", "error");
+    return;
+  }
+  
+  const payload = {
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone") || null,
+    whatsapp: formData.get("whatsapp") || null,
+    password: formData.get("password"),
+    skill: formData.get("skill"),
+    category: formData.get("category") || null,
+    state: formData.get("state"),
+    lga: formData.get("lga") || null,
+    city: formData.get("city") || null,
+    bio: formData.get("bio") || null,
+    id_type: formData.get("id_type"),
+    id_photo: idPhotoData,
+    work_photos: workPhotos,
+    photo: profilePhotoData || null
+  };
+  
+  if (!payload.name || !payload.email || !payload.password || !payload.skill || !payload.state || !payload.id_type) {
+    setStatus(form, "Please fill all required fields.", "error");
+    return;
+  }
+  
+  if (!payload.email.includes('@')) {
+    setStatus(form, "Please enter a valid email address.", "error");
+    return;
+  }
+  
+  if (payload.password.length < 6) {
+    setStatus(form, "Password must be at least 6 characters.", "error");
+    return;
+  }
+  
+  try {
+    const response = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      setStoredProvider(data.provider);
+      setStoredProviderToken(data.token);
+      setStatus(form, "Account created successfully! Redirecting...", "success");
+      setTimeout(() => {
+        window.location.href = "/dashboard.html";
+      }, 1500);
+    } else {
+      setStatus(form, data.message || "Unable to create account. Please check your information.", "error");
+    }
+  } catch (error) {
+    console.error("Registration error:", error);
+    setStatus(form, "Network error. Please check your connection and try again.", "error");
+  }
 });
 }
 
-// LOGIN
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
 if (page === "login") {
 const form = document.getElementById("login-form");
 const errorDiv = document.getElementById("login-error");
@@ -742,46 +881,58 @@ const loginBtn = form?.querySelector('button[type="submit"]');
 
 const existingToken = getStoredProviderToken();
 if (existingToken) {
-fetch("/api/me", {
-headers: { Authorization: `Bearer ${existingToken}` }
-}).then((res) => res.json()).then((data) => {
-if (data.success) {
-window.location.href = "/dashboard.html";
-} else {
-clearStoredProvider();
-}
-}).catch(() => {});
+  fetch('/api/me', {
+    headers: { 'Authorization': `Bearer ${existingToken}` }
+  }).then(res => res.json()).then(data => {
+    if (data.success) {
+      window.location.href = '/dashboard.html';
+    } else {
+      clearStoredProvider();
+    }
+  }).catch(() => {});
 }
 
 form?.addEventListener("submit", async (event) => {
-event.preventDefault();
-if (errorDiv) { errorDiv.style.display = "none"; errorDiv.textContent = ""; }
-setStatus(form, "Logging you in…", "info");
-if (loginBtn) { loginBtn.textContent = "Logging in…"; loginBtn.disabled = true; }
-
-const payload = Object.fromEntries(new FormData(form).entries());
-try {
-const { data } = await requestJson("/api/login", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(payload)
-}, false);
-if (data.success) {
-setStoredProvider(data.provider);
-setStoredProviderToken(data.token);
-setStatus(form, "Login successful. Redirecting...", "success");
-window.location.href = "/dashboard.html";
-} else {
-setStatus(form, data.message || "Login failed.", "error");
-if (errorDiv) {
-errorDiv.style.display = "block";
-errorDiv.textContent = data.message || "Invalid email or password.";
-}
-if (loginBtn) { loginBtn.textContent = "Login"; loginBtn.disabled = false; }
-}
-} catch (error) {
-setStatus(form, "Unable to login right now.", "error");
-if (loginBtn) { loginBtn.textContent = "Login"; loginBtn.disabled = false; }
-}
+  event.preventDefault();
+  if (errorDiv) {
+    errorDiv.style.display = 'none';
+    errorDiv.textContent = '';
+  }
+  setStatus(form, "Logging you in...", "info");
+  if (loginBtn) {
+    loginBtn.textContent = "Logging in...";
+    loginBtn.disabled = true;
+  }
+  
+  const payload = Object.fromEntries(new FormData(form).entries());
+  try {
+    const { data } = await requestJson("/api/login", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+    }, false);
+    if (data.success) {
+      setStoredProvider(data.provider);
+      setStoredProviderToken(data.token);
+      setStatus(form, "Login successful. Redirecting...", "success");
+      window.location.href = "/dashboard.html";
+    } else {
+      setStatus(form, data.message || "Login failed.", "error");
+      if (errorDiv) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = data.message || "Invalid email or password.";
+        errorDiv.style.background = '#fee';
+        errorDiv.style.color = '#c33';
+      }
+      if (loginBtn) {
+        loginBtn.textContent = "Login";
+        loginBtn.disabled = false;
+      }
+    }
+  } catch (error) {
+    setStatus(form, "Unable to login right now.", "error");
+    if (loginBtn) {
+      loginBtn.textContent = "Login";
+      loginBtn.disabled = false;
+    }
+  }
 });
 }
