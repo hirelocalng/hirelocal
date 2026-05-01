@@ -59,7 +59,7 @@ res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains;
 
 res.setHeader('Content-Security-Policy',
 "default-src 'self'; " +
-"script-src 'self' 'unsafe-inline' https://js.korapay.com; " +
+"script-src 'self' 'unsafe-inline' https://js.korapay.com https://korablobstorage.blob.core.windows.net; " +
 "style-src 'self' 'unsafe-inline'; " +
 "img-src 'self' data: blob: https:; " +
 "font-src 'self' https:; " +
