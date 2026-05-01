@@ -72,6 +72,33 @@
 
   <script src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js"></script>
   <script>
+    // Check if returning from Korapay payment
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentRef = urlParams.get('trxref') || urlParams.get('reference');
+      if (paymentRef) {
+        const token = localStorage.getItem('hirelocal_auth_token');
+        if (token) {
+          fetch('/api/payment/verify', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ reference: paymentRef })
+          }).then(r => r.json()).then(data => {
+            if (data.success) {
+              localStorage.setItem('hirelocal_provider', JSON.stringify(data.provider));
+              alert('Payment verified! Your subscription has been renewed.');
+            }
+            window.history.replaceState({}, '', '/dashboard.html');
+          }).catch(() => {
+            window.history.replaceState({}, '', '/dashboard.html');
+          });
+        }
+      }
+    })();
+
     // IMMEDIATE AUTH CHECK - This runs before anything else
     (function() {
       const token = localStorage.getItem('hirelocal_auth_token');
@@ -306,7 +333,10 @@
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-              }
+              },
+              body: JSON.stringify({
+                redirect_url: 'https://hirelocal.ng/dashboard.html'
+              })
             });
             
             const data = await response.json();

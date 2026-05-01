@@ -342,7 +342,6 @@ await pool.query(`CREATE TABLE IF NOT EXISTS payments ( id SERIAL PRIMARY KEY, p
 await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_provider_id ON payments(provider_id)`);
 await pool.query(`CREATE TABLE IF NOT EXISTS search_logs ( id SERIAL PRIMARY KEY, category VARCHAR(100), state VARCHAR(100), query VARCHAR(100), results_count INTEGER, searched_at TIMESTAMP DEFAULT NOW() )`);
 
-// NEW: Password reset table
 await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
   id SERIAL PRIMARY KEY,
   email VARCHAR(100) NOT NULL,
@@ -810,6 +809,7 @@ currency: 'NGN',
 customer: { name: provider.name, email: provider.email },
 narration: 'HireLocal subscription renewal',
 merchant_bears_cost: true,
+redirect_url: req.body.redirect_url || 'https://hirelocal.ng/dashboard.html',
 metadata: { providerId: String(provider.id), plan: 'subscription-renewal' }
 })
 });
