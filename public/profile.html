@@ -5,8 +5,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Provider Profile | HireLocal</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    /* ── Lightbox ── */
+    #lightbox-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox-overlay.active { display: flex; }
+    #lightbox-overlay img {
+      max-width: 92vw;
+      max-height: 88vh;
+      border-radius: 10px;
+      object-fit: contain;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+    #lightbox-close {
+      position: absolute;
+      top: 18px;
+      right: 26px;
+      color: #fff;
+      font-size: 2.8rem;
+      cursor: pointer;
+      line-height: 1;
+      user-select: none;
+      opacity: 0.85;
+      transition: opacity 0.2s;
+    }
+    #lightbox-close:hover { opacity: 1; }
+
+    /* Make gallery thumbs and avatar clickable */
+    .work-photo-thumb,
+    .avatar-clickable {
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .work-photo-thumb:hover,
+    .avatar-clickable:hover {
+      opacity: 0.82;
+      transform: scale(1.03);
+    }
+  </style>
 </head>
 <body data-page="profile">
+
+  <!-- ── Lightbox overlay ── -->
+  <div id="lightbox-overlay">
+    <span id="lightbox-close" title="Close">&times;</span>
+    <img id="lightbox-img" src="" alt="Full size photo" />
+  </div>
+
   <div class="page-shell">
     <header class="site-header">
       <div class="container nav">
@@ -133,6 +185,56 @@
   </div>
 
   <script src="/js/main.js"></script>
+
+  <script>
+    // ── Lightbox logic ──
+    const overlay   = document.getElementById('lightbox-overlay');
+    const lightImg  = document.getElementById('lightbox-img');
+    const closeBtn  = document.getElementById('lightbox-close');
+
+    function openLightbox(src) {
+      lightImg.src = src;
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      overlay.classList.remove('active');
+      lightImg.src = '';
+      document.body.style.overflow = '';
+    }
+
+    closeBtn.addEventListener('click', closeLightbox);
+
+    // Click outside the image to close
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeLightbox();
+    });
+
+    // Escape key to close
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeLightbox();
+    });
+
+    // ── Watch for gallery images and avatar being injected by main.js ──
+    // main.js builds the DOM after the API call, so we use a MutationObserver
+    // to catch images as soon as they appear.
+    const observer = new MutationObserver(function () {
+      // Work photo thumbnails
+      document.querySelectorAll('#provider-gallery img:not(.lb-ready)').forEach(function (img) {
+        img.classList.add('work-photo-thumb', 'lb-ready');
+        img.addEventListener('click', function () { openLightbox(img.src); });
+      });
+
+      // Profile avatar (an <img> injected inside #provider-profile)
+      document.querySelectorAll('#provider-profile img:not(.lb-ready)').forEach(function (img) {
+        img.classList.add('avatar-clickable', 'lb-ready');
+        img.addEventListener('click', function () { openLightbox(img.src); });
+      });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  </script>
 
   <footer class="site-footer">
     <div class="container">
