@@ -44,24 +44,27 @@
               <h2>Provider Login</h2>
               <p>Enter your account details to continue.</p>
             </div>
-            
+
             <div id="login-error" class="error-message" style="display:none; background:#fee; color:#c33; padding:12px; border-radius:8px; margin-bottom:15px;"></div>
-            
+
             <label>
               <span>Email Address</span>
               <input type="email" name="email" required autocomplete="email" />
             </label>
-            
+
             <label>
               <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                 <span>Password</span>
                 <a href="/forgot-password.html" style="font-size:0.8rem;">Forgot password?</a>
               </div>
-              <input type="password" name="password" required autocomplete="current-password" />
+              <div style="position:relative;">
+                <input type="password" name="password" required autocomplete="current-password" style="padding-right:3rem;" />
+                <button type="button" onclick="togglePassword(this)" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.85rem;font-weight:600;min-height:unset;padding:0;">Show</button>
+              </div>
             </label>
-            
+
             <button type="submit" class="button primary full-width-button">Login</button>
-            
+
             <p class="form-note">New here? <a href="/register.html">Create a provider account</a>.</p>
           </form>
         </div>
@@ -83,11 +86,20 @@
   </footer>
 
   <script>
-    // DIRECT LOGIN HANDLER - No dependencies on main.js
+    function togglePassword(btn) {
+      const input = btn.previousElementSibling;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+      }
+    }
+
     const form = document.getElementById('login-form');
     const errorDiv = document.getElementById('login-error');
-    
-    // Check if already logged in
+
     const existingToken = localStorage.getItem('hirelocal_auth_token');
     if (existingToken) {
       fetch('/api/me', {
@@ -101,46 +113,45 @@
         }
       }).catch(() => {});
     }
-    
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const email = form.email.value.trim();
       const password = form.password.value;
-      
+
       errorDiv.style.display = 'none';
       errorDiv.textContent = '';
-      
+
       if (!email || !password) {
         errorDiv.textContent = 'Please enter both email and password.';
         errorDiv.style.display = 'block';
         return;
       }
-      
+
       const submitBtn = form.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;
       submitBtn.textContent = 'Logging in...';
       submitBtn.disabled = true;
-      
+
       try {
         const response = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
-          // Store with the EXACT keys that main.js expects
           localStorage.setItem('hirelocal_provider', JSON.stringify(data.provider));
           localStorage.setItem('hirelocal_auth_token', data.token);
-          
+
           errorDiv.style.background = '#e6f4ea';
           errorDiv.style.color = '#2e7d32';
           errorDiv.textContent = 'Login successful! Redirecting...';
           errorDiv.style.display = 'block';
-          
+
           setTimeout(() => {
             window.location.href = '/dashboard.html';
           }, 500);
