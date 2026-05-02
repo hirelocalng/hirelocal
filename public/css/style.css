@@ -514,9 +514,9 @@ h3 {
 
 .provider-card-avatar img,
 .provider-card-avatar .avatar-placeholder-small {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
+  width: 200px;
+  height: 200px;
+  border-radius: 16px;
   object-fit: cover;
   border: 3px solid white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
