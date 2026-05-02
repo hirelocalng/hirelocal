@@ -114,7 +114,9 @@
             <label>
               <span>ID Photo For Verification</span>
               <input type="file" name="id_photo_file" accept="image/*" />
+              <small class="input-help">Upload a clear photo of your ID (required)</small>
             </label>
+            <div class="full-width single-photo-preview" id="register-id-preview"></div>
 
             <label>
               <span>Profile Picture</span>
@@ -129,7 +131,6 @@
               <small class="input-help">Upload at least 3 and at most 5 photos of completed jobs. These will appear on the public provider profile.</small>
             </label>
             <div class="full-width photo-preview-grid" id="register-work-preview"></div>
-            <div class="full-width single-photo-preview" id="register-id-preview"></div>
 
             <button type="submit" class="button primary full-width-button">Create Account</button>
             <p class="form-note">Already registered? <a href="/login.html">Login here</a>.</p>
@@ -138,21 +139,6 @@
       </section>
     </main>
   </div>
-
-  <script src="/js/main.js"></script>
-
-  <script>
-    function togglePassword(btn) {
-      const input = btn.previousElementSibling;
-      if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = 'Hide';
-      } else {
-        input.type = 'password';
-        btn.textContent = 'Show';
-      }
-    }
-  </script>
 
   <footer class="site-footer">
     <div class="container">
@@ -166,5 +152,194 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    // Helper: Convert file to base64 data URL
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          resolve(null);
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Toggle password visibility
+    function togglePassword(btn) {
+      const input = btn.previousElementSibling;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+      }
+    }
+
+    // Setup image previews
+    function setupImagePreviews() {
+      // Profile picture preview
+      const profileInput = document.querySelector('[name="profile_picture"]');
+      const profilePreview = document.getElementById('register-profile-preview');
+      if (profileInput && profilePreview) {
+        profileInput.addEventListener('change', () => {
+          const file = profileInput.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              profilePreview.innerHTML = `<img src="${e.target.result}" alt="Profile preview" style="max-width:150px;border-radius:50%;border:2px solid #0f766e;padding:3px;">`;
+            };
+            reader.readAsDataURL(file);
+          } else {
+            profilePreview.innerHTML = '';
+          }
+        });
+      }
+
+      // ID photo preview
+      const idInput = document.querySelector('[name="id_photo_file"]');
+      const idPreview = document.getElementById('register-id-preview');
+      if (idInput && idPreview) {
+        idInput.addEventListener('change', () => {
+          const file = idInput.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              idPreview.innerHTML = `<img src="${e.target.result}" alt="ID preview" style="max-width:200px;border:1px solid #ddd;padding:5px;border-radius:8px;">`;
+            };
+            reader.readAsDataURL(file);
+          } else {
+            idPreview.innerHTML = '';
+          }
+        });
+      }
+
+      // Work photos preview
+      const workInput = document.querySelector('[name="work_photo_files"]');
+      const workPreview = document.getElementById('register-work-preview');
+      if (workInput && workPreview) {
+        workInput.addEventListener('change', () => {
+          const files = Array.from(workInput.files);
+          workPreview.innerHTML = '';
+          files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = document.createElement('img');
+              img.src = e.target.result;
+              img.style.maxWidth = '100px';
+              img.style.margin = '5px';
+              img.style.borderRadius = '8px';
+              img.style.border = '2px solid #0f766e';
+              img.style.padding = '3px';
+              workPreview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+          });
+        });
+      }
+    }
+
+    // Form submission handler
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const submitBtn = document.querySelector('#register-form button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Creating account...';
+      submitBtn.disabled = true;
+
+      try {
+        // Collect form data
+        const formData = {
+          name: document.querySelector('[name="name"]').value.trim(),
+          email: document.querySelector('[name="email"]').value.trim(),
+          phone: document.querySelector('[name="phone"]').value.trim(),
+          whatsapp: document.querySelector('[name="whatsapp"]').value.trim(),
+          password: document.querySelector('[name="password"]').value,
+          skill: document.querySelector('[name="skill"]').value.trim(),
+          category: document.querySelector('[name="category"]').value.trim(),
+          state: document.querySelector('[name="state"]').value.trim(),
+          lga: document.querySelector('[name="lga"]').value.trim(),
+          city: document.querySelector('[name="city"]').value.trim(),
+          bio: document.querySelector('[name="bio"]').value.trim(),
+          id_type: document.querySelector('[name="id_type"]').value,
+        };
+
+        // Validate required fields
+        if (!formData.name || !formData.email || !formData.password || !formData.skill || !formData.state) {
+          throw new Error('Please fill all required fields.');
+        }
+        
+        if (formData.password.length < 6) {
+          throw new Error('Password must be at least 6 characters.');
+        }
+        
+        if (!formData.id_type) {
+          throw new Error('Please select your ID type.');
+        }
+
+        // Validate email format
+        if (!formData.email.includes('@')) {
+          throw new Error('Please enter a valid email address.');
+        }
+
+        // Convert profile picture (optional)
+        const profileFile = document.querySelector('[name="profile_picture"]').files[0];
+        if (profileFile) {
+          formData.photo = await fileToBase64(profileFile);
+        }
+
+        // Convert ID photo (required)
+        const idFile = document.querySelector('[name="id_photo_file"]').files[0];
+        if (!idFile) {
+          throw new Error('Please upload your ID photo for verification.');
+        }
+        formData.id_photo = await fileToBase64(idFile);
+
+        // Convert work photos (required: 3-5)
+        const workFiles = Array.from(document.querySelector('[name="work_photo_files"]').files);
+        if (workFiles.length < 3 || workFiles.length > 5) {
+          throw new Error('Please upload between 3 and 5 work photos.');
+        }
+        formData.work_photos = await Promise.all(workFiles.map(fileToBase64));
+
+        // Submit to backend
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.message || 'Registration failed');
+        }
+
+        // Save token and redirect
+        localStorage.setItem('hirelocal_token', result.token);
+        localStorage.setItem('hirelocal_provider', JSON.stringify(result.provider));
+        
+        alert('Account created successfully! Redirecting to dashboard...');
+        setTimeout(() => {
+          window.location.href = '/dashboard.html';
+        }, 1500);
+
+      } catch (error) {
+        console.error('Registration error:', error);
+        alert(error.message);
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Initialize previews when page loads
+    document.addEventListener('DOMContentLoaded', setupImagePreviews);
+  </script>
 </body>
 </html>
