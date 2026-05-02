@@ -192,5 +192,200 @@
   </div>
 
   <script src="/js/main.js"></script>
+<!-- Floating Contact Button -->
+<div id="contact-bubble" title="Contact Us">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+  </svg>
+</div>
+
+<!-- Contact Modal -->
+<div id="contact-modal-overlay">
+  <div id="contact-modal">
+    <div id="contact-modal-header">
+      <div>
+        <p style="margin:0;font-size:0.75rem;opacity:0.8;text-transform:uppercase;letter-spacing:0.1em;">Support</p>
+        <h3 style="margin:0;font-size:1.1rem;">Send us a message</h3>
+      </div>
+      <button id="contact-modal-close">&times;</button>
+    </div>
+    <div id="contact-modal-body">
+      <div id="contact-status"></div>
+      <div style="display:grid;gap:0.85rem;">
+        <label style="display:grid;gap:0.4rem;font-size:0.9rem;font-weight:600;">
+          Your Name
+          <input type="text" id="contact-name" placeholder="John Doe" />
+        </label>
+        <label style="display:grid;gap:0.4rem;font-size:0.9rem;font-weight:600;">
+          Email Address
+          <input type="email" id="contact-email" placeholder="you@example.com" />
+        </label>
+        <label style="display:grid;gap:0.4rem;font-size:0.9rem;font-weight:600;">
+          Message
+          <textarea id="contact-message" rows="4" placeholder="How can we help you?"></textarea>
+        </label>
+        <button id="contact-submit" class="button primary" style="width:100%;">Send Message</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #contact-bubble {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0f766e, #0a5f58);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(15, 118, 110, 0.4);
+    z-index: 999;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  #contact-bubble:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 32px rgba(15, 118, 110, 0.5);
+  }
+  #contact-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 1rem 2rem;
+  }
+  #contact-modal-overlay.active {
+    display: flex;
+  }
+  #contact-modal {
+    width: 100%;
+    max-width: 360px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    background: #fff;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  #contact-modal-header {
+    background: linear-gradient(135deg, #0f766e, #0a5f58);
+    color: white;
+    padding: 1.1rem 1.2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #contact-modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.8;
+  }
+  #contact-modal-close:hover { opacity: 1; }
+  #contact-modal-body {
+    padding: 1.2rem;
+  }
+  #contact-modal-body input,
+  #contact-modal-body textarea {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid rgba(16,35,29,0.15);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    background: #fafafa;
+    min-height: unset;
+  }
+  #contact-modal-body textarea {
+    min-height: 90px;
+    resize: vertical;
+  }
+  #contact-status {
+    margin-bottom: 0.75rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0;
+  }
+  #contact-status.success {
+    color: #21735f;
+    background: rgba(33,115,95,0.1);
+    padding: 0.65rem 0.9rem;
+  }
+  #contact-status.error {
+    color: #a63f38;
+    background: rgba(166,63,56,0.1);
+    padding: 0.65rem 0.9rem;
+  }
+</style>
+
+<script>
+  const bubble = document.getElementById('contact-bubble');
+  const modalOverlay = document.getElementById('contact-modal-overlay');
+  const closeBtn = document.getElementById('contact-modal-close');
+  const submitBtn = document.getElementById('contact-submit');
+  const statusEl = document.getElementById('contact-status');
+
+  bubble.addEventListener('click', () => modalOverlay.classList.add('active'));
+  closeBtn.addEventListener('click', () => modalOverlay.classList.remove('active'));
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) modalOverlay.classList.remove('active');
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    const name = document.getElementById('contact-name').value.trim();
+    const email = document.getElementById('contact-email').value.trim();
+    const message = document.getElementById('contact-message').value.trim();
+
+    statusEl.className = '';
+    statusEl.textContent = '';
+
+    if (!name || !email || !message) {
+      statusEl.className = 'error';
+      statusEl.textContent = 'Please fill all fields.';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message })
+      });
+      const data = await res.json();
+      if (data.success) {
+        statusEl.className = 'success';
+        statusEl.textContent = data.message;
+        document.getElementById('contact-name').value = '';
+        document.getElementById('contact-email').value = '';
+        document.getElementById('contact-message').value = '';
+      } else {
+        statusEl.className = 'error';
+        statusEl.textContent = data.message;
+      }
+    } catch (err) {
+      statusEl.className = 'error';
+      statusEl.textContent = 'Something went wrong. Please try again.';
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send Message';
+  });
+</script>  
 </body>
 </html>

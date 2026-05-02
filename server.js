@@ -943,7 +943,49 @@ res.json({ success: true, message: 'Provider deleted.' });
 res.status(500).json({ success: false, message: err.message });
 }
 });
+// ============================================================
+// CONTACT FORM ENDPOINT
+// ============================================================
+app.post('/api/contact', async (req, res) => {
+  const name = sanitizeText(req.body.name);
+  const email = sanitizeText(req.body.email).toLowerCase();
+  const message = sanitizeText(req.body.message);
 
+  if (!name || !email || !message) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+  if (!email.includes('@')) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid email.' });
+  }
+  if (message.length < 10) {
+    return res.status(400).json({ success: false, message: 'Message is too short.' });
+  }
+
+  try {
+    await sendEmail(
+      'hirelocal.ng@gmail.com',
+      `New Contact Message from ${name}`,
+      `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">New Contact Form Submission</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Message:</strong></p>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-top: 10px;">
+          ${message.replace(/\n/g, '<br>')}
+        </div>
+        <hr>
+        <p style="font-size: 12px; color: #777;">Sent from HireLocal contact form</p>
+      </div>
+      `
+    );
+
+    res.json({ success: true, message: 'Message sent successfully. We will get back to you soon.' });
+  } catch (err) {
+    console.error('Contact form error:', err.message);
+    res.status(500).json({ success: false, message: 'Unable to send message. Please try again.' });
+  }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
 console.log(`HireLocal server running on port ${PORT}`);
