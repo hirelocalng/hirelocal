@@ -219,16 +219,21 @@
         });
       }
 
-      // Work photos preview
+      // Work photos preview - FIXED (allows multiple photos)
       const workInput = document.querySelector('[name="work_photo_files"]');
       const workPreview = document.getElementById('register-work-preview');
       if (workInput && workPreview) {
         workInput.addEventListener('change', () => {
           const files = Array.from(workInput.files);
           workPreview.innerHTML = '';
-          files.forEach(file => {
+          
+          files.forEach((file, index) => {
             const reader = new FileReader();
             reader.onload = (e) => {
+              const imgContainer = document.createElement('div');
+              imgContainer.style.position = 'relative';
+              imgContainer.style.display = 'inline-block';
+              
               const img = document.createElement('img');
               img.src = e.target.result;
               img.style.maxWidth = '100px';
@@ -236,7 +241,33 @@
               img.style.borderRadius = '8px';
               img.style.border = '2px solid #0f766e';
               img.style.padding = '3px';
-              workPreview.appendChild(img);
+              
+              const removeBtn = document.createElement('button');
+              removeBtn.textContent = '✕';
+              removeBtn.style.position = 'absolute';
+              removeBtn.style.top = '0';
+              removeBtn.style.right = '0';
+              removeBtn.style.background = 'red';
+              removeBtn.style.color = 'white';
+              removeBtn.style.border = 'none';
+              removeBtn.style.borderRadius = '50%';
+              removeBtn.style.width = '20px';
+              removeBtn.style.height = '20px';
+              removeBtn.style.cursor = 'pointer';
+              removeBtn.style.fontSize = '12px';
+              
+              removeBtn.onclick = () => {
+                const dt = new DataTransfer();
+                const currentFiles = Array.from(workInput.files);
+                const newFiles = currentFiles.filter((_, i) => i !== index);
+                newFiles.forEach(f => dt.items.add(f));
+                workInput.files = dt.files;
+                workInput.dispatchEvent(new Event('change'));
+              };
+              
+              imgContainer.appendChild(img);
+              imgContainer.appendChild(removeBtn);
+              workPreview.appendChild(imgContainer);
             };
             reader.readAsDataURL(file);
           });
@@ -254,7 +285,6 @@
       submitBtn.disabled = true;
 
       try {
-        // Collect form data
         const formData = {
           name: document.querySelector('[name="name"]').value.trim(),
           email: document.querySelector('[name="email"]').value.trim(),
@@ -270,7 +300,6 @@
           id_type: document.querySelector('[name="id_type"]').value,
         };
 
-        // Validate required fields
         if (!formData.name || !formData.email || !formData.password || !formData.skill || !formData.state) {
           throw new Error('Please fill all required fields.');
         }
@@ -283,32 +312,27 @@
           throw new Error('Please select your ID type.');
         }
 
-        // Validate email format
         if (!formData.email.includes('@')) {
           throw new Error('Please enter a valid email address.');
         }
 
-        // Convert profile picture (optional)
         const profileFile = document.querySelector('[name="profile_picture"]').files[0];
         if (profileFile) {
           formData.photo = await fileToBase64(profileFile);
         }
 
-        // Convert ID photo (required)
         const idFile = document.querySelector('[name="id_photo_file"]').files[0];
         if (!idFile) {
           throw new Error('Please upload your ID photo for verification.');
         }
         formData.id_photo = await fileToBase64(idFile);
 
-        // Convert work photos (required: 3-5)
         const workFiles = Array.from(document.querySelector('[name="work_photo_files"]').files);
         if (workFiles.length < 3 || workFiles.length > 5) {
           throw new Error('Please upload between 3 and 5 work photos.');
         }
         formData.work_photos = await Promise.all(workFiles.map(fileToBase64));
 
-        // Submit to backend
         const response = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -321,7 +345,6 @@
           throw new Error(result.message || 'Registration failed');
         }
 
-        // Save token and redirect
         localStorage.setItem('hirelocal_token', result.token);
         localStorage.setItem('hirelocal_provider', JSON.stringify(result.provider));
         
@@ -338,7 +361,6 @@
       }
     });
 
-    // Initialize previews when page loads
     document.addEventListener('DOMContentLoaded', setupImagePreviews);
   </script>
 </body>
