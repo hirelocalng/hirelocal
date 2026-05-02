@@ -14,6 +14,8 @@ const SUBSCRIPTION_RENEWAL_DAYS = 14;
 const SUBSCRIPTION_AMOUNT_NGN = 1000;
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const KORAPAY_BASE_URL = 'https://api.korapay.com/merchant/api/v1';
+const MIN_WORK_PHOTOS = 3;
+const MAX_WORK_PHOTOS = 10;
 
 const rawDatabaseUrl = (process.env.DATABASE_URL || '').trim();
 const hasDatabase =
@@ -117,8 +119,8 @@ next();
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.get('/', (req, res) => {
 res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -184,8 +186,8 @@ const isImageDataUrl = (value) =>
 typeof value === 'string' && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
 
 const validateWorkPhotos = (photos) => {
-if (photos.length < 3 || photos.length > 5) {
-return 'Please upload between 3 and 5 work photos.';
+if (photos.length < MIN_WORK_PHOTOS || photos.length > MAX_WORK_PHOTOS) {
+return `Please upload between ${MIN_WORK_PHOTOS} and ${MAX_WORK_PHOTOS} work photos.`;
 }
 if (!photos.every(isImageDataUrl)) {
 return 'Work photos must be valid images.';
@@ -706,23 +708,25 @@ const state = sanitizeText(req.body.state);
 const lga = sanitizeOptionalText(req.body.lga);
 const city = sanitizeOptionalText(req.body.city);
 const bio = sanitizeOptionalText(req.body.bio);
-const workPhotos = parsePhotoArray(req.body.work_photos);
+const workPhotosProvided = Object.prototype.hasOwnProperty.call(req.body, 'work_photos');
+const workPhotos = workPhotosProvided ? parsePhotoArray(req.body.work_photos) : null;
 const photo = req.body.photo && isImageDataUrl(req.body.photo) ? req.body.photo : undefined;
 
 if (!skill || !state) {
 return res.status(400).json({ success: false, message: 'Skill and state are required.' });
 }
-const photoError = validateWorkPhotos(workPhotos);
+const photoError = workPhotosProvided ? validateWorkPhotos(workPhotos) : null;
 if (photoError) return res.status(400).json({ success: false, message: photoError });
 
 try {
-const current = await pool.query('SELECT name, name_changed_at FROM providers WHERE id = $1', [auth.sub]);
+const current = await pool.query('SELECT name, name_changed_at, work_photos FROM providers WHERE id = $1', [auth.sub]);
 if (current.rows.length === 0) {
 return res.status(404).json({ success: false, message: 'Provider not found.' });
 }
 
 const currentName = current.rows[0].name;
 const nameChangedAt = current.rows[0].name_changed_at;
+const finalWorkPhotos = workPhotosProvided ? workPhotos : parsePhotoArray(current.rows[0].work_photos);
 const nameIsChanging = newName && newName !== currentName;
 
 if (nameIsChanging) {
@@ -740,23 +744,23 @@ let query, params;
 
 if (photo !== undefined && nameIsChanging) {
 query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb, photo=$11 WHERE id=$12 RETURNING ${ownerProviderColumns}`;
-params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), photo, auth.sub];
+params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), photo, auth.sub];
 } else if (photo !== undefined && !nameIsChanging) {
 query = `UPDATE providers SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8, work_photos=$9::jsonb, photo=$10 WHERE id=$11 RETURNING ${ownerProviderColumns}`;
-params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), photo, auth.sub];
+params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), photo, auth.sub];
 } else if (photo === undefined && nameIsChanging) {
 query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb WHERE id=$11 RETURNING ${ownerProviderColumns}`;
-params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), auth.sub];
+params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), auth.sub];
 } else {
 query = `UPDATE providers SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8, work_photos=$9::jsonb WHERE id=$10 RETURNING ${ownerProviderColumns}`;
-params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(workPhotos), auth.sub];
+params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), auth.sub];
 }
 
 const result = await pool.query(query, params);
 res.json({
 success: true,
 provider: enrichProvider(result.rows[0]),
-message: nameIsChanging ? 'Profile updated. Your name has been changed — you can change it again in 30 days.' : 'Profile updated successfully.'
+message: nameIsChanging ? 'Profile updated. Your name has been changed - you can change it again in 30 days.' : 'Profile updated successfully.'
 });
 } catch (err) {
 res.status(400).json({ success: false, message: err.message });

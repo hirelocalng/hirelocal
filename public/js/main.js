@@ -2,6 +2,8 @@ const page = document.body.dataset.page;
 const providerStorageKey = "hirelocal_provider";
 const providerTokenStorageKey = "hirelocal_auth_token";
 const adminTokenStorageKey = "hirelocal_admin_token";
+const minWorkPhotos = 3;
+const maxWorkPhotos = 10;
 
 const escapeHtml = (value = "") =>
 String(value).replace(/[&<>"']/g, (char) => ({
@@ -183,8 +185,8 @@ previewContainer.innerHTML = `<div class="empty-state">Unable to preview image(s
 };
 
 const validatePhotoCount = (photos) => {
-if (photos.length < 3) return "Please upload at least 3 work photos.";
-if (photos.length > 5) return "Please upload at most 5 work photos.";
+if (photos.length < minWorkPhotos) return `Please upload at least ${minWorkPhotos} work photos.`;
+if (photos.length > maxWorkPhotos) return `Please upload at most ${maxWorkPhotos} work photos.`;
 return null;
 };
 
@@ -659,7 +661,7 @@ let collectedWorkPhotos = [];
 const renderWorkPhotos = () => {
 if (!workPreview) return;
 if (collectedWorkPhotos.length === 0) {
-workPreview.innerHTML = `<div class="empty-state">No work photos selected yet. Add 3-5 photos.</div>`;
+workPreview.innerHTML = `<div class="empty-state">No work photos selected yet. Add ${minWorkPhotos}-${maxWorkPhotos} photos.</div>`;
 return;
 }
 workPreview.innerHTML = collectedWorkPhotos.map((photo, index) => `
@@ -689,10 +691,10 @@ const newPhotos = await readFilesAsDataUrls(workPhotoInput.files);
 if (newPhotos.length) {
 // APPEND new photos to existing ones (don't replace)
 collectedWorkPhotos = [...collectedWorkPhotos, ...newPhotos];
-// Enforce max 5 photos limit
-if (collectedWorkPhotos.length > 5) {
-collectedWorkPhotos = collectedWorkPhotos.slice(0, 5);
-setStatus(form, "Maximum 5 work photos allowed. Extra photos were removed.", "info");
+// Enforce max photos limit
+if (collectedWorkPhotos.length > maxWorkPhotos) {
+collectedWorkPhotos = collectedWorkPhotos.slice(0, maxWorkPhotos);
+setStatus(form, `Maximum ${maxWorkPhotos} work photos allowed. Extra photos were removed.`, "info");
 }
 renderWorkPhotos();
 }

@@ -47,7 +47,7 @@
           <form class="glass-card form-grid auth-form large-form" id="register-form">
             <div class="form-header">
               <h2>Provider Registration</h2>
-              <p>Complete the form below to create your account. Registration now requires 3 to 5 work photos and one verification ID photo.</p>
+              <p>Complete the form below to create your account. Registration requires 3 to 10 work photos and one verification ID photo.</p>
             </div>
 
             <label>
@@ -128,7 +128,7 @@
             <label class="full-width">
               <span>Work Photos</span>
               <input type="file" name="work_photo_files" accept="image/*" multiple />
-              <small class="input-help">Upload at least 3 and at most 5 photos of completed jobs. These will appear on the public provider profile.</small>
+              <small class="input-help">Upload 3 to 10 photos of completed jobs. You can add them in more than one selection.</small>
             </label>
             <div class="full-width photo-preview-grid" id="register-work-preview"></div>
 
@@ -154,6 +154,10 @@
   </footer>
 
   <script>
+    const MIN_WORK_PHOTOS = 3;
+    const MAX_WORK_PHOTOS = 10;
+    let selectedWorkPhotoFiles = [];
+
     // Helper: Convert file to base64 data URL
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
@@ -179,6 +183,55 @@
         input.type = 'password';
         btn.textContent = 'Show';
       }
+    }
+
+    async function renderWorkPhotoPreviews() {
+      const workPreview = document.getElementById('register-work-preview');
+      if (!workPreview) return;
+
+      workPreview.innerHTML = '';
+      if (!selectedWorkPhotoFiles.length) {
+        workPreview.innerHTML = `<div class="empty-state">No work photos selected yet. Add ${MIN_WORK_PHOTOS} to ${MAX_WORK_PHOTOS} photos.</div>`;
+        return;
+      }
+
+      const previewUrls = await Promise.all(selectedWorkPhotoFiles.map(fileToBase64));
+      previewUrls.forEach((previewUrl, index) => {
+        const tile = document.createElement('article');
+        tile.className = 'photo-tile';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = 'x';
+        removeBtn.setAttribute('aria-label', `Remove work photo ${index + 1}`);
+        removeBtn.style.position = 'absolute';
+        removeBtn.style.top = '4px';
+        removeBtn.style.right = '4px';
+        removeBtn.style.background = 'rgba(0,0,0,0.72)';
+        removeBtn.style.color = 'white';
+        removeBtn.style.border = 'none';
+        removeBtn.style.borderRadius = '50%';
+        removeBtn.style.width = '24px';
+        removeBtn.style.height = '24px';
+        removeBtn.style.cursor = 'pointer';
+        removeBtn.style.zIndex = '1';
+        removeBtn.addEventListener('click', () => {
+          selectedWorkPhotoFiles.splice(index, 1);
+          renderWorkPhotoPreviews();
+        });
+
+        const img = document.createElement('img');
+        img.src = previewUrl;
+        img.alt = `Work photo ${index + 1}`;
+
+        const caption = document.createElement('span');
+        caption.textContent = `Photo ${index + 1}`;
+
+        tile.appendChild(removeBtn);
+        tile.appendChild(img);
+        tile.appendChild(caption);
+        workPreview.appendChild(tile);
+      });
     }
 
     // Setup image previews
@@ -219,58 +272,38 @@
         });
       }
 
-      // Work photos preview - FIXED (allows multiple photos)
+      // Work photos preview - allows adding photos across multiple selections
       const workInput = document.querySelector('[name="work_photo_files"]');
       const workPreview = document.getElementById('register-work-preview');
       if (workInput && workPreview) {
-        workInput.addEventListener('change', () => {
-          const files = Array.from(workInput.files);
-          workPreview.innerHTML = '';
-          
-          files.forEach((file, index) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const imgContainer = document.createElement('div');
-              imgContainer.style.position = 'relative';
-              imgContainer.style.display = 'inline-block';
-              
-              const img = document.createElement('img');
-              img.src = e.target.result;
-              img.style.maxWidth = '100px';
-              img.style.margin = '5px';
-              img.style.borderRadius = '8px';
-              img.style.border = '2px solid #0f766e';
-              img.style.padding = '3px';
-              
-              const removeBtn = document.createElement('button');
-              removeBtn.textContent = '✕';
-              removeBtn.style.position = 'absolute';
-              removeBtn.style.top = '0';
-              removeBtn.style.right = '0';
-              removeBtn.style.background = 'red';
-              removeBtn.style.color = 'white';
-              removeBtn.style.border = 'none';
-              removeBtn.style.borderRadius = '50%';
-              removeBtn.style.width = '20px';
-              removeBtn.style.height = '20px';
-              removeBtn.style.cursor = 'pointer';
-              removeBtn.style.fontSize = '12px';
-              
-              removeBtn.onclick = () => {
-                const dt = new DataTransfer();
-                const currentFiles = Array.from(workInput.files);
-                const newFiles = currentFiles.filter((_, i) => i !== index);
-                newFiles.forEach(f => dt.items.add(f));
-                workInput.files = dt.files;
-                workInput.dispatchEvent(new Event('change'));
-              };
-              
-              imgContainer.appendChild(img);
-              imgContainer.appendChild(removeBtn);
-              workPreview.appendChild(imgContainer);
-            };
-            reader.readAsDataURL(file);
-          });
+        renderWorkPhotoPreviews();
+        workInput.addEventListener('change', async () => {
+          {
+            const filesToAdd = Array.from(workInput.files || []);
+            if (!filesToAdd.length) return;
+
+            const availableSlots = MAX_WORK_PHOTOS - selectedWorkPhotoFiles.length;
+            if (availableSlots <= 0) {
+              alert(`You can upload up to ${MAX_WORK_PHOTOS} work photos.`);
+              workInput.value = '';
+              return;
+            }
+
+            const acceptedFiles = filesToAdd.slice(0, availableSlots);
+            selectedWorkPhotoFiles = [...selectedWorkPhotoFiles, ...acceptedFiles];
+            workInput.value = '';
+
+            if (acceptedFiles.length < filesToAdd.length) {
+              alert(`Only ${MAX_WORK_PHOTOS} work photos are allowed. Extra photos were not added.`);
+            }
+
+            try {
+              await renderWorkPhotoPreviews();
+            } catch (error) {
+              workPreview.innerHTML = '<div class="empty-state">Unable to preview photos.</div>';
+            }
+            return;
+          }
         });
       }
     }
@@ -327,9 +360,9 @@
         }
         formData.id_photo = await fileToBase64(idFile);
 
-        const workFiles = Array.from(document.querySelector('[name="work_photo_files"]').files);
-        if (workFiles.length < 3 || workFiles.length > 5) {
-          throw new Error('Please upload between 3 and 5 work photos.');
+        const workFiles = selectedWorkPhotoFiles;
+        if (workFiles.length < MIN_WORK_PHOTOS || workFiles.length > MAX_WORK_PHOTOS) {
+          throw new Error(`Please upload between ${MIN_WORK_PHOTOS} and ${MAX_WORK_PHOTOS} work photos.`);
         }
         formData.work_photos = await Promise.all(workFiles.map(fileToBase64));
 
@@ -345,7 +378,7 @@
           throw new Error(result.message || 'Registration failed');
         }
 
-        localStorage.setItem('hirelocal_token', result.token);
+        localStorage.setItem('hirelocal_auth_token', result.token);
         localStorage.setItem('hirelocal_provider', JSON.stringify(result.provider));
         
         alert('Account created successfully! Redirecting to dashboard...');

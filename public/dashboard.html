@@ -72,6 +72,22 @@
 
   <script src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js"></script>
   <script>
+    const MIN_WORK_PHOTOS = 3;
+    const MAX_WORK_PHOTOS = 10;
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Unable to read file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function readFilesAsDataUrls(fileList) {
+      return Promise.all(Array.from(fileList || []).map(readFileAsDataUrl));
+    }
+
     // Check if returning from Korapay payment
     (function() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -226,7 +242,7 @@
                     <li>Add a profile picture to build trust with clients.</li>
                     <li>Write a strong bio that describes your best services.</li>
                     <li>Use a clear phone number and WhatsApp contact.</li>
-                    <li>Upload 3-5 work photos to showcase your skills.</li>
+                    <li>Upload 3-10 work photos to showcase your skills.</li>
                     <li>Ask happy clients to leave reviews on your profile.</li>
                   </ul>
                 </section>
@@ -274,7 +290,7 @@
                   <label class="full-width">
                     <span>Update Work Photos</span>
                     <input type="file" name="work_photo_files" accept="image/*" multiple />
-                    <small class="input-help">Leave this unchanged to keep your current 3 to 5 photos.</small>
+                    <small class="input-help">Add new photos or leave this unchanged to keep your current gallery. Up to 10 photos.</small>
                   </label>
                   <div class="full-width photo-preview-grid" id="dashboard-work-preview"></div>
                   <button type="submit" class="button primary full-width-button">Save Changes</button>
@@ -291,10 +307,12 @@
     
     function escapeHtml(str) {
       if (!str) return '';
-      return String(str).replace(/[&<>]/g, function(m) {
+      return String(str).replace(/[&<>"']/g, function(m) {
         if (m === '&') return '&amp;';
         if (m === '<') return '&lt;';
         if (m === '>') return '&gt;';
+        if (m === '"') return '&quot;';
+        if (m === "'") return '&#39;';
         return m;
       });
     }
@@ -358,6 +376,89 @@
       // Update profile form
       const updateForm = document.getElementById('dashboard-update-form');
       if (updateForm) {
+        const workPhotoInput = updateForm.elements.namedItem('work_photo_files');
+        const workPreview = document.getElementById('dashboard-work-preview');
+        let dashboardWorkPhotos = Array.isArray(provider.work_photos) ? [...provider.work_photos] : [];
+        let workPhotosChanged = false;
+
+        const renderDashboardWorkPhotos = () => {
+          if (!workPreview) return;
+          workPreview.innerHTML = '';
+
+          if (!dashboardWorkPhotos.length) {
+            workPreview.innerHTML = `<div class="empty-state">No work photos selected. Add ${MIN_WORK_PHOTOS} to ${MAX_WORK_PHOTOS} photos.</div>`;
+            return;
+          }
+
+          dashboardWorkPhotos.forEach((photo, index) => {
+            const tile = document.createElement('article');
+            tile.className = 'photo-tile';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.textContent = 'x';
+            removeBtn.setAttribute('aria-label', `Remove work photo ${index + 1}`);
+            removeBtn.style.position = 'absolute';
+            removeBtn.style.top = '4px';
+            removeBtn.style.right = '4px';
+            removeBtn.style.background = 'rgba(0,0,0,0.72)';
+            removeBtn.style.color = 'white';
+            removeBtn.style.border = 'none';
+            removeBtn.style.borderRadius = '50%';
+            removeBtn.style.width = '24px';
+            removeBtn.style.height = '24px';
+            removeBtn.style.cursor = 'pointer';
+            removeBtn.style.zIndex = '1';
+            removeBtn.addEventListener('click', () => {
+              dashboardWorkPhotos.splice(index, 1);
+              workPhotosChanged = true;
+              renderDashboardWorkPhotos();
+            });
+
+            const img = document.createElement('img');
+            img.src = photo;
+            img.alt = `Work photo ${index + 1}`;
+
+            const caption = document.createElement('span');
+            caption.textContent = `Photo ${index + 1}`;
+
+            tile.appendChild(removeBtn);
+            tile.appendChild(img);
+            tile.appendChild(caption);
+            workPreview.appendChild(tile);
+          });
+        };
+
+        renderDashboardWorkPhotos();
+
+        workPhotoInput?.addEventListener('change', async () => {
+          const files = Array.from(workPhotoInput.files || []);
+          if (!files.length) return;
+
+          const availableSlots = MAX_WORK_PHOTOS - dashboardWorkPhotos.length;
+          if (availableSlots <= 0) {
+            paymentStatus.innerHTML = `<span style="color:red;">You can keep up to ${MAX_WORK_PHOTOS} work photos.</span>`;
+            workPhotoInput.value = '';
+            return;
+          }
+
+          const acceptedFiles = files.slice(0, availableSlots);
+          try {
+            const newPhotos = await readFilesAsDataUrls(acceptedFiles);
+            dashboardWorkPhotos = [...dashboardWorkPhotos, ...newPhotos];
+            workPhotosChanged = true;
+            workPhotoInput.value = '';
+
+            if (acceptedFiles.length < files.length) {
+              paymentStatus.innerHTML = `<span style="color:blue;">Only ${MAX_WORK_PHOTOS} work photos are allowed. Extra photos were not added.</span>`;
+            }
+
+            renderDashboardWorkPhotos();
+          } catch (err) {
+            paymentStatus.innerHTML = '<span style="color:red;">Unable to preview selected work photos.</span>';
+          }
+        });
+
         updateForm.addEventListener('submit', async (e) => {
           e.preventDefault();
           
@@ -372,19 +473,23 @@
             city: formData.get('city'),
             bio: formData.get('bio')
           };
+
+          if (workPhotosChanged) {
+            if (dashboardWorkPhotos.length < MIN_WORK_PHOTOS || dashboardWorkPhotos.length > MAX_WORK_PHOTOS) {
+              paymentStatus.innerHTML = `<span style="color:red;">Please keep between ${MIN_WORK_PHOTOS} and ${MAX_WORK_PHOTOS} work photos.</span>`;
+              return;
+            }
+            payload.work_photos = dashboardWorkPhotos;
+          }
           
           // Handle profile picture
           const profilePic = formData.get('profile_picture');
           if (profilePic && profilePic.size > 0) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-              payload.photo = reader.result;
-              await saveProfileUpdate(payload, token);
-            };
-            reader.readAsDataURL(profilePic);
-          } else {
-            await saveProfileUpdate(payload, token);
+            const [profilePhoto] = await readFilesAsDataUrls([profilePic]);
+            payload.photo = profilePhoto;
           }
+
+          await saveProfileUpdate(payload, token);
         });
       }
     }
