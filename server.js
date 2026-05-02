@@ -45,6 +45,51 @@ console.warn('TOKEN_SECRET is not set. Add it in .env before deployment.');
 app.disable('x-powered-by');
 
 // ============================================================
+// RATE LIMITER (in-memory, no extra packages needed)
+// ============================================================
+const rateLimitStore = new Map();
+
+const rateLimit = (maxRequests, windowMs, message) => {
+  return (req, res, next) => {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const key = `${req.path}:${ip}`;
+    const now = Date.now();
+
+    if (!rateLimitStore.has(key)) {
+      rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    const record = rateLimitStore.get(key);
+
+    if (now > record.resetAt) {
+      rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    if (record.count >= maxRequests) {
+      const retryAfterSecs = Math.ceil((record.resetAt - now) / 1000);
+      res.setHeader('Retry-After', retryAfterSecs);
+      return res.status(429).json({
+        success: false,
+        message: message || `Too many requests. Please wait ${retryAfterSecs} seconds before trying again.`
+      });
+    }
+
+    record.count++;
+    next();
+  };
+};
+
+// Clean up old rate limit entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (now > record.resetAt) rateLimitStore.delete(key);
+  }
+}, 10 * 60 * 1000);
+
+// ============================================================
 // SECURITY HEADERS
 // ============================================================
 app.use((req, res, next) => {
@@ -375,7 +420,9 @@ setInterval(() => { deactivateExpiredProviders(); }, CLEANUP_INTERVAL_MS);
 // ============================================================
 // REGISTER ENDPOINT
 // ============================================================
-app.post('/api/register', async (req, res) => {
+app.post('/api/register',
+  rateLimit(5, 60 * 60 * 1000, 'Too many registration attempts. Please try again in 1 hour.'),
+  async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 
 const name = sanitizeText(req.body.name);
@@ -433,7 +480,9 @@ res.status(400).json({ success: false, message });
 // ============================================================
 // LOGIN ENDPOINT
 // ============================================================
-app.post('/api/login', async (req, res) => {
+app.post('/api/login',
+  rateLimit(10, 15 * 60 * 1000, 'Too many login attempts. Please wait 15 minutes before trying again.'),
+  async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const email = sanitizeText(req.body.email).toLowerCase();
 const password = sanitizeText(req.body.password);
@@ -469,7 +518,9 @@ res.status(500).json({ success: false, message: 'Server error.' });
 // ============================================================
 // FORGOT PASSWORD ENDPOINT
 // ============================================================
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password',
+  rateLimit(3, 60 * 60 * 1000, 'Too many password reset requests. Please wait 1 hour before trying again.'),
+  async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 
 const email = sanitizeText(req.body.email).toLowerCase();
@@ -547,7 +598,9 @@ res.status(500).json({ success: false, message: 'Unable to process request. Plea
 // ============================================================
 // RESET PASSWORD ENDPOINT
 // ============================================================
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password',
+  rateLimit(5, 60 * 60 * 1000, 'Too many reset attempts. Please wait 1 hour.'),
+  async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 
 const { email, token, new_password } = req.body;
@@ -599,7 +652,9 @@ res.status(500).json({ success: false, message: 'Unable to reset password. Pleas
 // ============================================================
 // ADMIN LOGIN
 // ============================================================
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login',
+  rateLimit(5, 15 * 60 * 1000, 'Too many admin login attempts. Please wait 15 minutes.'),
+  (req, res) => {
 const secret = sanitizeText(req.body.secret);
 if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
 return res.status(401).json({ success: false, message: 'Invalid admin secret.' });
@@ -760,7 +815,9 @@ res.status(500).json({ success: false, message: err.message });
 // ============================================================
 // ADD REVIEW
 // ============================================================
-app.post('/api/review', async (req, res) => {
+app.post('/api/review',
+  rateLimit(5, 60 * 60 * 1000, 'Too many reviews submitted. Please wait 1 hour before submitting again.'),
+  async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const providerId = Number(req.body.provider_id);
 const reviewerName = sanitizeText(req.body.reviewer_name);
@@ -943,10 +1000,13 @@ res.json({ success: true, message: 'Provider deleted.' });
 res.status(500).json({ success: false, message: err.message });
 }
 });
+
 // ============================================================
 // CONTACT FORM ENDPOINT
 // ============================================================
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact',
+  rateLimit(5, 60 * 60 * 1000, 'Too many messages sent. Please wait 1 hour before trying again.'),
+  async (req, res) => {
   const name = sanitizeText(req.body.name);
   const email = sanitizeText(req.body.email).toLowerCase();
   const message = sanitizeText(req.body.message);
@@ -979,13 +1039,13 @@ app.post('/api/contact', async (req, res) => {
       </div>
       `
     );
-
     res.json({ success: true, message: 'Message sent successfully. We will get back to you soon.' });
   } catch (err) {
     console.error('Contact form error:', err.message);
     res.status(500).json({ success: false, message: 'Unable to send message. Please try again.' });
   }
 });
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
 console.log(`HireLocal server running on port ${PORT}`);
