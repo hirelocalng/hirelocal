@@ -9,6 +9,8 @@ const { Pool } = require('pg');
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
 
+app.set('trust proxy', 1);
+
 const SUBSCRIPTION_TRIAL_DAYS = 7;
 const SUBSCRIPTION_RENEWAL_DAYS = 14;
 const SUBSCRIPTION_AMOUNT_NGN = 1000;
@@ -243,6 +245,7 @@ return `${encodedHeader}.${encodedPayload}.${signature}`;
 };
 
 const verifyToken = (token, expectedRole) => {
+try {
 if (!token) return null;
 const parts = token.split('.');
 if (parts.length !== 3) return null;
@@ -254,10 +257,12 @@ const expectedSignature = crypto
 .replace(/\+/g, '-')
 .replace(/\//g, '_')
 .replace(/=+$/g, '');
-if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(incomingSignature))) {
+const expectedBuffer = Buffer.from(expectedSignature);
+const incomingBuffer = Buffer.from(incomingSignature);
+if (expectedBuffer.length !== incomingBuffer.length) return null;
+if (!crypto.timingSafeEqual(expectedBuffer, incomingBuffer)) {
 return null;
 }
-try {
 const payload = JSON.parse(base64UrlDecode(encodedPayload));
 const now = Math.floor(Date.now() / 1000);
 if (!payload.exp || payload.exp < now) return null;
@@ -282,13 +287,12 @@ new Promise((resolve, reject) => {
 if (!storedPassword) { resolve(false); return; }
 if (!storedPassword.startsWith('scrypt:')) { resolve(password === storedPassword); return; }
 const [, salt, key] = storedPassword.split(':');
+if (!salt || !key) { resolve(false); return; }
 crypto.scrypt(password, salt, 64, (err, derivedKey) => {
 if (err) return reject(err);
 const storedKeyBuffer = Buffer.from(key, 'hex');
-resolve(
-storedKeyBuffer.length === derivedKey.length &&
-crypto.timingSafeEqual(storedKeyBuffer, derivedKey)
-);
+if (storedKeyBuffer.length !== derivedKey.length) { resolve(false); return; }
+resolve(crypto.timingSafeEqual(storedKeyBuffer, derivedKey));
 });
 });
 
@@ -513,7 +517,7 @@ const token = signToken({ role: 'provider', sub: provider.id }, 60 * 60 * 24 * 1
 res.json({ success: true, provider: safeProvider, token });
 } catch (err) {
 console.error('Login error:', err.message);
-res.status(500).json({ success: false, message: 'Server error.' });
+res.status(500).json({ success: false, message: 'Unable to login right now. Please try again.' });
 }
 });
 
@@ -1048,6 +1052,25 @@ app.post('/api/contact',
     console.error('Contact form error:', err.message);
     res.status(500).json({ success: false, message: 'Unable to send message. Please try again.' });
   }
+});
+
+app.use('/api', (req, res) => {
+res.status(404).json({ success: false, message: 'API endpoint not found.' });
+});
+
+app.use((err, req, res, next) => {
+console.error('Unhandled request error:', err.message);
+if (res.headersSent) return next(err);
+const status = err.status || err.statusCode || 500;
+let message = 'Unexpected server error. Please try again.';
+if (status === 413) {
+message = 'The uploaded data is too large. Please reduce image sizes and try again.';
+} else if (err.type === 'entity.parse.failed') {
+message = 'Invalid request data. Please refresh the page and try again.';
+} else if (status >= 400 && status < 500) {
+message = err.message || message;
+}
+res.status(status).json({ success: false, message });
 });
 
 const PORT = process.env.PORT || 3000;
