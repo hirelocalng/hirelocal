@@ -427,7 +427,7 @@ setInterval(() => { deactivateExpiredProviders(); }, CLEANUP_INTERVAL_MS);
 // REGISTER ENDPOINT
 // ============================================================
 app.post('/api/register',
-  rateLimit(5, 60 * 60 * 1000, 'Too many registration attempts. Please try again in 1 hour.'),
+  rateLimit(15, 60 * 60 * 1000, 'Too many registration attempts. Please try again in 1 hour.'),
   async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 

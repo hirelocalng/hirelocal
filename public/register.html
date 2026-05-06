@@ -132,7 +132,18 @@
             </label>
             <div class="full-width photo-preview-grid" id="register-work-preview"></div>
 
-            <button type="submit" class="button primary full-width-button">Create Account</button>
+            <!-- Progress indicator shown during submission -->
+            <div id="upload-progress" style="display:none;" class="full-width">
+              <div style="background:var(--surface, #f3f4f6);border-radius:8px;padding:1rem;text-align:center;">
+                <p id="upload-progress-text" style="margin:0;font-weight:600;color:var(--primary, #0f766e);font-size:0.95rem;">Preparing images...</p>
+                <div style="margin-top:0.5rem;background:#e5e7eb;border-radius:999px;height:6px;overflow:hidden;">
+                  <div id="upload-progress-bar" style="height:100%;background:var(--primary, #0f766e);border-radius:999px;width:0%;transition:width 0.4s ease;"></div>
+                </div>
+                <p style="margin:0.5rem 0 0;font-size:0.8rem;color:var(--muted, #6b7280);">Please wait, do not close this page.</p>
+              </div>
+            </div>
+
+            <button type="submit" class="button primary full-width-button" id="submit-btn">Create Account</button>
             <p class="form-note">Already registered? <a href="/login.html">Login here</a>.</p>
           </form>
         </div>
@@ -158,24 +169,61 @@
     const MAX_WORK_PHOTOS = 10;
     let selectedWorkPhotoFiles = [];
 
-    // Helper: Convert file to base64 data URL
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        if (!file) {
-          resolve(null);
-          return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
+    // ============================================================
+    // IMAGE COMPRESSION
+    // Resizes image to max 1200px wide and compresses to JPEG 0.72
+    // Reduces a 5MB phone photo down to ~200-400KB
+    // ============================================================
+    function compressImage(file, maxWidth, quality) {
+      maxWidth = maxWidth || 1200;
+      quality = quality || 0.72;
+
+      return new Promise(function(resolve, reject) {
+        if (!file) { resolve(null); return; }
+
+        var reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onerror = reject;
+          img.onload = function() {
+            var width = img.width;
+            var height = img.height;
+
+            // Only resize if image is larger than maxWidth
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+
+            var canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.src = e.target.result;
+        };
         reader.readAsDataURL(file);
       });
     }
 
+    // For profile and ID photos — slightly higher quality since they're single images
+    function compressSinglePhoto(file) {
+      return compressImage(file, 1000, 0.80);
+    }
+
+    // For work photos — more compression since there are multiple
+    function compressWorkPhoto(file) {
+      return compressImage(file, 1200, 0.70);
+    }
+
     // Toggle password visibility
     function togglePassword(btn) {
-      const input = btn.previousElementSibling;
+      var input = btn.previousElementSibling;
       if (input.type === 'password') {
         input.type = 'text';
         btn.textContent = 'Hide';
@@ -185,47 +233,75 @@
       }
     }
 
+    // ============================================================
+    // PROGRESS BAR HELPERS
+    // ============================================================
+    function setProgress(percent, text) {
+      var bar = document.getElementById('upload-progress-bar');
+      var label = document.getElementById('upload-progress-text');
+      if (bar) bar.style.width = percent + '%';
+      if (label && text) label.textContent = text;
+    }
+
+    function showProgress() {
+      var el = document.getElementById('upload-progress');
+      if (el) el.style.display = 'block';
+    }
+
+    function hideProgress() {
+      var el = document.getElementById('upload-progress');
+      if (el) el.style.display = 'none';
+    }
+
+    // ============================================================
+    // WORK PHOTO PREVIEWS
+    // ============================================================
     async function renderWorkPhotoPreviews() {
-      const workPreview = document.getElementById('register-work-preview');
+      var workPreview = document.getElementById('register-work-preview');
       if (!workPreview) return;
 
       workPreview.innerHTML = '';
       if (!selectedWorkPhotoFiles.length) {
-        workPreview.innerHTML = `<div class="empty-state">No work photos selected yet. Add ${MIN_WORK_PHOTOS} to ${MAX_WORK_PHOTOS} photos.</div>`;
+        workPreview.innerHTML = '<div class="empty-state">No work photos selected yet. Add ' + MIN_WORK_PHOTOS + ' to ' + MAX_WORK_PHOTOS + ' photos.</div>';
         return;
       }
 
-      const previewUrls = await Promise.all(selectedWorkPhotoFiles.map(fileToBase64));
-      previewUrls.forEach((previewUrl, index) => {
-        const tile = document.createElement('article');
+      // Use original files for preview (no need to compress just for preview)
+      var previewPromises = selectedWorkPhotoFiles.map(function(file) {
+        return new Promise(function(resolve) {
+          var reader = new FileReader();
+          reader.onload = function(e) { resolve(e.target.result); };
+          reader.onerror = function() { resolve(null); };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      var previewUrls = await Promise.all(previewPromises);
+
+      previewUrls.forEach(function(previewUrl, index) {
+        if (!previewUrl) return;
+
+        var tile = document.createElement('article');
         tile.className = 'photo-tile';
 
-        const removeBtn = document.createElement('button');
+        var removeBtn = document.createElement('button');
         removeBtn.type = 'button';
         removeBtn.textContent = 'x';
-        removeBtn.setAttribute('aria-label', `Remove work photo ${index + 1}`);
-        removeBtn.style.position = 'absolute';
-        removeBtn.style.top = '4px';
-        removeBtn.style.right = '4px';
-        removeBtn.style.background = 'rgba(0,0,0,0.72)';
-        removeBtn.style.color = 'white';
-        removeBtn.style.border = 'none';
-        removeBtn.style.borderRadius = '50%';
-        removeBtn.style.width = '24px';
-        removeBtn.style.height = '24px';
-        removeBtn.style.cursor = 'pointer';
-        removeBtn.style.zIndex = '1';
-        removeBtn.addEventListener('click', () => {
-          selectedWorkPhotoFiles.splice(index, 1);
-          renderWorkPhotoPreviews();
-        });
+        removeBtn.setAttribute('aria-label', 'Remove work photo ' + (index + 1));
+        removeBtn.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.72);color:white;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;z-index:1;';
+        removeBtn.addEventListener('click', (function(i) {
+          return function() {
+            selectedWorkPhotoFiles.splice(i, 1);
+            renderWorkPhotoPreviews();
+          };
+        })(index));
 
-        const img = document.createElement('img');
+        var img = document.createElement('img');
         img.src = previewUrl;
-        img.alt = `Work photo ${index + 1}`;
+        img.alt = 'Work photo ' + (index + 1);
 
-        const caption = document.createElement('span');
-        caption.textContent = `Photo ${index + 1}`;
+        var caption = document.createElement('span');
+        caption.textContent = 'Photo ' + (index + 1);
 
         tile.appendChild(removeBtn);
         tile.appendChild(img);
@@ -234,18 +310,20 @@
       });
     }
 
-    // Setup image previews
+    // ============================================================
+    // SETUP IMAGE PREVIEWS
+    // ============================================================
     function setupImagePreviews() {
       // Profile picture preview
-      const profileInput = document.querySelector('[name="profile_picture"]');
-      const profilePreview = document.getElementById('register-profile-preview');
+      var profileInput = document.querySelector('[name="profile_picture"]');
+      var profilePreview = document.getElementById('register-profile-preview');
       if (profileInput && profilePreview) {
-        profileInput.addEventListener('change', () => {
-          const file = profileInput.files[0];
+        profileInput.addEventListener('change', function() {
+          var file = profileInput.files[0];
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              profilePreview.innerHTML = `<img src="${e.target.result}" alt="Profile preview" style="max-width:150px;border-radius:50%;border:2px solid #0f766e;padding:3px;">`;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+              profilePreview.innerHTML = '<img src="' + e.target.result + '" alt="Profile preview" style="max-width:150px;border-radius:50%;border:2px solid #0f766e;padding:3px;">';
             };
             reader.readAsDataURL(file);
           } else {
@@ -255,15 +333,15 @@
       }
 
       // ID photo preview
-      const idInput = document.querySelector('[name="id_photo_file"]');
-      const idPreview = document.getElementById('register-id-preview');
+      var idInput = document.querySelector('[name="id_photo_file"]');
+      var idPreview = document.getElementById('register-id-preview');
       if (idInput && idPreview) {
-        idInput.addEventListener('change', () => {
-          const file = idInput.files[0];
+        idInput.addEventListener('change', function() {
+          var file = idInput.files[0];
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              idPreview.innerHTML = `<img src="${e.target.result}" alt="ID preview" style="max-width:200px;border:1px solid #ddd;padding:5px;border-radius:8px;">`;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+              idPreview.innerHTML = '<img src="' + e.target.result + '" alt="ID preview" style="max-width:200px;border:1px solid #ddd;padding:5px;border-radius:8px;">';
             };
             reader.readAsDataURL(file);
           } else {
@@ -272,53 +350,54 @@
         });
       }
 
-      // Work photos preview - allows adding photos across multiple selections
-      const workInput = document.querySelector('[name="work_photo_files"]');
-      const workPreview = document.getElementById('register-work-preview');
-      if (workInput && workPreview) {
+      // Work photos — accumulate across multiple selections
+      var workInput = document.querySelector('[name="work_photo_files"]');
+      if (workInput) {
         renderWorkPhotoPreviews();
-        workInput.addEventListener('change', async () => {
-          {
-            const filesToAdd = Array.from(workInput.files || []);
-            if (!filesToAdd.length) return;
+        workInput.addEventListener('change', async function() {
+          var filesToAdd = Array.from(workInput.files || []);
+          if (!filesToAdd.length) return;
 
-            const availableSlots = MAX_WORK_PHOTOS - selectedWorkPhotoFiles.length;
-            if (availableSlots <= 0) {
-              alert(`You can upload up to ${MAX_WORK_PHOTOS} work photos.`);
-              workInput.value = '';
-              return;
-            }
-
-            const acceptedFiles = filesToAdd.slice(0, availableSlots);
-            selectedWorkPhotoFiles = [...selectedWorkPhotoFiles, ...acceptedFiles];
+          var availableSlots = MAX_WORK_PHOTOS - selectedWorkPhotoFiles.length;
+          if (availableSlots <= 0) {
+            alert('You can upload up to ' + MAX_WORK_PHOTOS + ' work photos.');
             workInput.value = '';
-
-            if (acceptedFiles.length < filesToAdd.length) {
-              alert(`Only ${MAX_WORK_PHOTOS} work photos are allowed. Extra photos were not added.`);
-            }
-
-            try {
-              await renderWorkPhotoPreviews();
-            } catch (error) {
-              workPreview.innerHTML = '<div class="empty-state">Unable to preview photos.</div>';
-            }
             return;
+          }
+
+          var acceptedFiles = filesToAdd.slice(0, availableSlots);
+          selectedWorkPhotoFiles = selectedWorkPhotoFiles.concat(acceptedFiles);
+          workInput.value = '';
+
+          if (acceptedFiles.length < filesToAdd.length) {
+            alert('Only ' + MAX_WORK_PHOTOS + ' work photos are allowed. Extra photos were not added.');
+          }
+
+          try {
+            await renderWorkPhotoPreviews();
+          } catch (error) {
+            var workPreview = document.getElementById('register-work-preview');
+            if (workPreview) workPreview.innerHTML = '<div class="empty-state">Unable to preview photos.</div>';
           }
         });
       }
     }
 
-    // Form submission handler
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
+    // ============================================================
+    // FORM SUBMISSION
+    // ============================================================
+    document.getElementById('register-form').addEventListener('submit', async function(e) {
       e.preventDefault();
-      
-      const submitBtn = document.querySelector('#register-form button[type="submit"]');
-      const originalText = submitBtn.textContent;
-      submitBtn.textContent = 'Creating account...';
+
+      var submitBtn = document.getElementById('submit-btn');
+      submitBtn.textContent = 'Please wait...';
       submitBtn.disabled = true;
+      showProgress();
+      setProgress(5, 'Validating your details...');
 
       try {
-        const formData = {
+        // --- Collect text fields ---
+        var formData = {
           name: document.querySelector('[name="name"]').value.trim(),
           email: document.querySelector('[name="email"]').value.trim(),
           phone: document.querySelector('[name="phone"]').value.trim(),
@@ -333,63 +412,82 @@
           id_type: document.querySelector('[name="id_type"]').value,
         };
 
+        // --- Basic validation ---
         if (!formData.name || !formData.email || !formData.password || !formData.skill || !formData.state) {
           throw new Error('Please fill all required fields.');
         }
-        
         if (formData.password.length < 6) {
           throw new Error('Password must be at least 6 characters.');
         }
-        
         if (!formData.id_type) {
           throw new Error('Please select your ID type.');
         }
-
         if (!formData.email.includes('@')) {
           throw new Error('Please enter a valid email address.');
         }
 
-        const profileFile = document.querySelector('[name="profile_picture"]').files[0];
-        if (profileFile) {
-          formData.photo = await fileToBase64(profileFile);
-        }
-
-        const idFile = document.querySelector('[name="id_photo_file"]').files[0];
+        var idFile = document.querySelector('[name="id_photo_file"]').files[0];
         if (!idFile) {
           throw new Error('Please upload your ID photo for verification.');
         }
-        formData.id_photo = await fileToBase64(idFile);
 
-        const workFiles = selectedWorkPhotoFiles;
+        var workFiles = selectedWorkPhotoFiles;
         if (workFiles.length < MIN_WORK_PHOTOS || workFiles.length > MAX_WORK_PHOTOS) {
-          throw new Error(`Please upload between ${MIN_WORK_PHOTOS} and ${MAX_WORK_PHOTOS} work photos.`);
+          throw new Error('Please upload between ' + MIN_WORK_PHOTOS + ' and ' + MAX_WORK_PHOTOS + ' work photos.');
         }
-        formData.work_photos = await Promise.all(workFiles.map(fileToBase64));
 
-        const response = await fetch('/api/register', {
+        // --- Compress profile picture ---
+        setProgress(15, 'Compressing profile picture...');
+        var profileFile = document.querySelector('[name="profile_picture"]').files[0];
+        if (profileFile) {
+          formData.photo = await compressSinglePhoto(profileFile);
+        }
+
+        // --- Compress ID photo ---
+        setProgress(30, 'Compressing ID photo...');
+        formData.id_photo = await compressSinglePhoto(idFile);
+
+        // --- Compress work photos one by one with progress ---
+        var compressedWorkPhotos = [];
+        for (var i = 0; i < workFiles.length; i++) {
+          var progressPercent = 30 + Math.round(((i + 1) / workFiles.length) * 50);
+          setProgress(progressPercent, 'Compressing work photo ' + (i + 1) + ' of ' + workFiles.length + '...');
+          var compressed = await compressWorkPhoto(workFiles[i]);
+          compressedWorkPhotos.push(compressed);
+        }
+        formData.work_photos = compressedWorkPhotos;
+
+        // --- Send to server ---
+        setProgress(85, 'Uploading your profile...');
+
+        var response = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
 
-        const result = await response.json();
+        setProgress(95, 'Finishing up...');
+
+        var result = await response.json();
 
         if (!result.success) {
           throw new Error(result.message || 'Registration failed');
         }
 
+        setProgress(100, 'Account created!');
+
         localStorage.setItem('hirelocal_auth_token', result.token);
         localStorage.setItem('hirelocal_provider', JSON.stringify(result.provider));
-        
-        alert('Account created successfully! Redirecting to dashboard...');
-        setTimeout(() => {
+
+        setTimeout(function() {
           window.location.href = '/dashboard.html';
-        }, 1500);
+        }, 1000);
 
       } catch (error) {
         console.error('Registration error:', error);
+        hideProgress();
         alert(error.message);
-        submitBtn.textContent = originalText;
+        submitBtn.textContent = 'Create Account';
         submitBtn.disabled = false;
       }
     });
