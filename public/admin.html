@@ -5,6 +5,131 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Panel | HireLocal</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .admin-card {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 16px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .admin-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .admin-card-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0 0 0.2rem;
+    }
+    .admin-card-meta {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin: 0;
+    }
+    .admin-card-badges {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-verified { background: #d1fae5; color: #065f46; }
+    .badge-unverified { background: #fef3c7; color: #92400e; }
+    .badge-active { background: #dbeafe; color: #1e40af; }
+    .badge-expired { background: #fee2e2; color: #991b1b; }
+    .admin-card-expiry {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin-bottom: 0.85rem;
+    }
+    .admin-card-expiry strong { color: #1a1a1a; }
+    .admin-card-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn-verify {
+      background: #0f766e;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-verify:hover { background: #0a5f58; }
+    .btn-extend {
+      background: #1d4ed8;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-extend:hover { background: #1e40af; }
+    .btn-delete {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-delete:hover { background: #b91c1c; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .admin-id-photo {
+      max-width: 220px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      margin-top: 0.5rem;
+    }
+    .admin-msg {
+      font-size: 0.82rem;
+      margin-top: 0.5rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+    }
+    .admin-msg.success { background: #d1fae5; color: #065f46; }
+    .admin-msg.error { background: #fee2e2; color: #991b1b; }
+    .admin-summary {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .summary-chip {
+      background: #f3f4f6;
+      border-radius: 10px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+    }
+    .summary-chip span {
+      font-size: 1.1rem;
+      color: #0f766e;
+    }
+  </style>
 </head>
 <body data-page="admin">
   <div class="page-shell">
@@ -40,13 +165,16 @@
             </div>
           </div>
 
+          <!-- Summary stats -->
+          <div class="admin-summary" id="admin-summary" style="display:none;"></div>
+
           <section class="glass-card admin-results">
             <div class="results-topbar">
               <div>
                 <p class="eyebrow">Provider list</p>
                 <h2>All provider accounts</h2>
               </div>
-              <p>Verify trusted providers from this panel. Verification ID photos are visible only here.</p>
+              <p>Verify, extend subscriptions, or delete providers from this panel.</p>
             </div>
             <div id="admin-status"></div>
             <div id="admin-providers" class="results-grid"></div>
@@ -54,20 +182,234 @@
         </div>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-row">
+          <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
+          <div class="footer-links">
+            <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
+            <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
+            <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
+          </div>
+        </div>
+      </div>
+    </footer>
   </div>
 
   <script src="/js/main.js"></script>
- <footer class="site-footer">
-  <div class="container">
-    <div class="footer-row">
-      <p style="color:var(--muted);margin:0;font-size:0.9rem;">&copy; 2026 HireLocal Nigeria. All rights reserved.</p>
-      <div class="footer-links">
-        <a href="/privacy.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Privacy Policy</a>
-        <a href="/terms.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Terms of Service</a>
-        <a href="/index.html" style="color:var(--muted);font-weight:600;font-size:0.9rem;">Home</a>
-      </div>
-    </div>
-  </div>
-</footer> 
+
+  <script>
+    const adminToken = localStorage.getItem('hirelocal_admin_token');
+    const statusEl = document.getElementById('admin-status');
+    const providersEl = document.getElementById('admin-providers');
+    const summaryEl = document.getElementById('admin-summary');
+
+    if (!adminToken) {
+      window.location.href = '/admin-login.html';
+    }
+
+    function formatExpiry(provider) {
+      if (!provider.subscription_expiry) return 'No expiry set';
+      const date = new Date(provider.subscription_expiry);
+      return date.toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function renderProviders(providers) {
+      providersEl.innerHTML = '';
+
+      if (!providers.length) {
+        providersEl.innerHTML = '<p style="color:#6b7280;padding:1rem;">No providers found.</p>';
+        return;
+      }
+
+      // Summary stats
+      const total = providers.length;
+      const verified = providers.filter(p => p.verified).length;
+      const active = providers.filter(p => p.subscription && p.subscription.isActive).length;
+      const expired = providers.filter(p => !p.subscription || !p.subscription.isActive).length;
+
+      summaryEl.style.display = 'flex';
+      summaryEl.innerHTML = `
+        <div class="summary-chip">Total: <span>${total}</span></div>
+        <div class="summary-chip">Verified: <span>${verified}</span></div>
+        <div class="summary-chip">Active: <span>${active}</span></div>
+        <div class="summary-chip">Expired: <span>${expired}</span></div>
+      `;
+
+      providers.forEach(provider => {
+        const isActive = provider.subscription && provider.subscription.isActive;
+        const isVerified = provider.verified;
+        const expiryText = formatExpiry(provider);
+        const daysLeft = provider.subscription ? provider.subscription.daysRemaining : 0;
+
+        const card = document.createElement('div');
+        card.className = 'admin-card';
+        card.id = `provider-card-${provider.id}`;
+
+        card.innerHTML = `
+          <div class="admin-card-header">
+            <div>
+              <p class="admin-card-name">${provider.name}</p>
+              <p class="admin-card-meta">${provider.email} &bull; ${provider.phone || 'No phone'}</p>
+              <p class="admin-card-meta">${provider.skill} &bull; ${provider.state}${provider.lga ? ', ' + provider.lga : ''}</p>
+            </div>
+            <div style="text-align:right;">
+              <p class="admin-card-meta">ID: #${provider.id}</p>
+              <p class="admin-card-meta">Joined: ${new Date(provider.created_at).toLocaleDateString('en-NG')}</p>
+            </div>
+          </div>
+
+          <div class="admin-card-badges">
+            <span class="badge ${isVerified ? 'badge-verified' : 'badge-unverified'}">
+              ${isVerified ? '✓ Verified' : 'Unverified'}
+            </span>
+            <span class="badge ${isActive ? 'badge-active' : 'badge-expired'}">
+              ${isActive ? `Active · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : 'Expired'}
+            </span>
+          </div>
+
+          <p class="admin-card-expiry">
+            Subscription expiry: <strong>${expiryText}</strong>
+          </p>
+
+          ${provider.id_type ? `<p class="admin-card-meta" style="margin-bottom:0.5rem;">ID Type: <strong>${provider.id_type}</strong></p>` : ''}
+          ${provider.id_photo ? `<img src="${provider.id_photo}" alt="ID Photo" class="admin-id-photo" />` : ''}
+
+          <div class="admin-card-actions" style="margin-top:0.85rem;">
+            ${!isVerified ? `<button class="btn-verify" onclick="verifyProvider(${provider.id}, this)">✓ Verify</button>` : `<button class="btn-verify" disabled>✓ Verified</button>`}
+            <button class="btn-extend" onclick="extendProvider(${provider.id}, this)">+ Extend 14 Days</button>
+            <button class="btn-delete" onclick="deleteProvider(${provider.id}, '${provider.name}', this)">Delete</button>
+          </div>
+          <div id="msg-${provider.id}"></div>
+        `;
+
+        providersEl.appendChild(card);
+      });
+    }
+
+    function showMsg(id, text, type) {
+      const el = document.getElementById(`msg-${id}`);
+      if (!el) return;
+      el.className = `admin-msg ${type}`;
+      el.textContent = text;
+      setTimeout(() => { el.textContent = ''; el.className = ''; }, 4000);
+    }
+
+    async function loadProviders() {
+      statusEl.textContent = 'Loading providers...';
+      statusEl.style.color = '#6b7280';
+      providersEl.innerHTML = '';
+      summaryEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/providers', {
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+          statusEl.textContent = data.message || 'Failed to load providers.';
+          statusEl.style.color = '#dc2626';
+          return;
+        }
+
+        statusEl.textContent = '';
+        renderProviders(data.providers);
+      } catch (err) {
+        statusEl.textContent = 'Network error. Please try again.';
+        statusEl.style.color = '#dc2626';
+      }
+    }
+
+    async function verifyProvider(id, btn) {
+      if (!confirm('Verify this provider?')) return;
+      btn.disabled = true;
+      btn.textContent = 'Verifying...';
+
+      try {
+        const res = await fetch(`/api/admin/verify/${id}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showMsg(id, '✓ Provider verified successfully.', 'success');
+          btn.textContent = '✓ Verified';
+        } else {
+          showMsg(id, data.message || 'Failed to verify.', 'error');
+          btn.disabled = false;
+          btn.textContent = '✓ Verify';
+        }
+      } catch (err) {
+        showMsg(id, 'Network error. Try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = '✓ Verify';
+      }
+    }
+
+    async function extendProvider(id, btn) {
+      if (!confirm('Extend this provider\'s subscription by 14 days?')) return;
+      btn.disabled = true;
+      btn.textContent = 'Extending...';
+
+      try {
+        const res = await fetch(`/api/admin/extend/${id}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showMsg(id, '✓ Subscription extended by 14 days. Provider is now visible.', 'success');
+          btn.textContent = '+ Extend 14 Days';
+          btn.disabled = false;
+          // Refresh to show updated expiry
+          setTimeout(() => loadProviders(), 1500);
+        } else {
+          showMsg(id, data.message || 'Failed to extend.', 'error');
+          btn.disabled = false;
+          btn.textContent = '+ Extend 14 Days';
+        }
+      } catch (err) {
+        showMsg(id, 'Network error. Try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = '+ Extend 14 Days';
+      }
+    }
+
+    async function deleteProvider(id, name, btn) {
+      if (!confirm(`Delete "${name}" permanently? This cannot be undone.`)) return;
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
+
+      try {
+        const res = await fetch(`/api/admin/delete/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const card = document.getElementById(`provider-card-${id}`);
+          if (card) card.remove();
+        } else {
+          showMsg(id, data.message || 'Failed to delete.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Delete';
+        }
+      } catch (err) {
+        showMsg(id, 'Network error. Try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    }
+
+    document.getElementById('admin-refresh-button').addEventListener('click', loadProviders);
+
+    // Auto load on page open
+    loadProviders();
+  </script>
 </body>
 </html>

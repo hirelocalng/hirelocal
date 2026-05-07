@@ -979,7 +979,26 @@ res.json({ success: true, message: 'Provider verified.', provider: enrichProvide
 res.status(500).json({ success: false, message: err.message });
 }
 });
-
+app.post('/api/admin/extend/:id', async (req, res) => {
+  if (!pool) return sendDatabaseUnavailable(res);
+  const adminAuth = getAdminAuth(req);
+  const providerId = Number(req.params.id);
+  if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  if (!Number.isInteger(providerId)) return res.status(400).json({ success: false, message: 'Invalid provider id.' });
+  try {
+    const result = await pool.query(
+      `UPDATE providers SET 
+        subscription_expiry = GREATEST(COALESCE(subscription_expiry, NOW()), NOW()) + INTERVAL '14 days',
+        is_active = true
+      WHERE id = $1 RETURNING ${adminProviderColumns}`,
+      [providerId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Provider not found.' });
+    res.json({ success: true, message: 'Subscription extended by 14 days.', provider: enrichProvider(result.rows[0]) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 app.get('/api/admin/searches', async (req, res) => {
 if (!pool) return sendDatabaseUnavailable(res);
 const adminAuth = getAdminAuth(req);

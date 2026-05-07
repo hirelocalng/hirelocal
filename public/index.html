@@ -40,6 +40,7 @@
             <div class="hero-actions">
               <a class="button primary" href="/search.html">Start Searching</a>
               <a class="button tertiary" href="/register.html">List Your Skill</a>
+              <button class="button secondary" id="install-btn" style="display:none;">📲 Install App</button>
             </div>
 
             <div class="hero-metrics" id="home-stats">
@@ -405,6 +406,34 @@
           .catch((err) => console.log('SW error:', err));
       });
     }
+  </script>
+
+  <!-- PWA Install Button -->
+  <script>
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const installBtn = document.getElementById('install-btn');
+      if (installBtn) installBtn.style.display = 'inline-block';
+    });
+
+    const installBtn = document.getElementById('install-btn');
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      });
+    }
+
+    window.addEventListener('appinstalled', () => {
+      const btn = document.getElementById('install-btn');
+      if (btn) btn.style.display = 'none';
+    });
   </script>
 
 </body>
