@@ -6,6 +6,41 @@
   <title>Provider Profile | HireLocal</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
+    /* ── Skeleton loader ── */
+    .skeleton {
+      background: linear-gradient(90deg, #e8e8e8 25%, #f5f5f5 50%, #e8e8e8 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+    }
+    .skeleton-line {
+      height: 16px;
+      margin-bottom: 0.6rem;
+    }
+    .skeleton-line.short { width: 40%; }
+    .skeleton-line.medium { width: 65%; }
+    .skeleton-line.full { width: 100%; }
+    .skeleton-title {
+      height: 32px;
+      width: 70%;
+      margin-bottom: 0.75rem;
+    }
+    .skeleton-card {
+      height: 80px;
+      border-radius: 12px;
+      margin-bottom: 0.75rem;
+    }
+
     /* ── Lightbox ── */
     #lightbox-overlay {
       display: none;
@@ -38,7 +73,6 @@
     }
     #lightbox-close:hover { opacity: 1; }
 
-    /* Make gallery thumbs and avatar clickable */
     .work-photo-thumb,
     .avatar-clickable {
       cursor: pointer;
@@ -73,13 +107,16 @@
     <main>
       <section class="section profile-page">
         <div class="container">
+
+          <!-- Skeleton shows immediately, replaced when data loads -->
           <section class="profile-showcase" id="provider-profile">
-            <div class="avatar-placeholder">HL</div>
-            <div class="profile-main-copy">
-              <p class="eyebrow">Provider profile</p>
-              <h1>Provider Name</h1>
-              <p class="profile-meta">Skill • Category • City, State</p>
-              <p class="profile-bio">Provider details will load here from your API.</p>
+            <div class="skeleton skeleton-avatar"></div>
+            <div class="profile-main-copy" style="flex:1;">
+              <div class="skeleton skeleton-line short" style="margin-bottom:0.5rem;"></div>
+              <div class="skeleton skeleton-title"></div>
+              <div class="skeleton skeleton-line medium"></div>
+              <div class="skeleton skeleton-line full"></div>
+              <div class="skeleton skeleton-line medium"></div>
             </div>
           </section>
 
@@ -93,12 +130,14 @@
                   </div>
                 </div>
                 <div class="stats-grid">
-                  <div><strong>Phone</strong><span id="provider-phone">-</span></div>
-                  <div><strong>WhatsApp</strong><span id="provider-whatsapp">-</span></div>
-                  <div><strong>Rating</strong><span id="provider-rating">0.00</span></div>
-                  <div><strong>Views</strong><span id="provider-views">0</span></div>
+                  <div><strong>Phone</strong><span id="provider-phone"><span class="skeleton skeleton-line short" style="display:inline-block;width:80px;height:14px;"></span></span></div>
+                  <div><strong>WhatsApp</strong><span id="provider-whatsapp"><span class="skeleton skeleton-line short" style="display:inline-block;width:80px;height:14px;"></span></span></div>
+                  <div><strong>Rating</strong><span id="provider-rating"><span class="skeleton skeleton-line short" style="display:inline-block;width:40px;height:14px;"></span></span></div>
+                  <div><strong>Views</strong><span id="provider-views"><span class="skeleton skeleton-line short" style="display:inline-block;width:40px;height:14px;"></span></span></div>
                 </div>
-                <div class="contact-cta-row" id="provider-contact-links"></div>
+                <div class="contact-cta-row" id="provider-contact-links">
+                  <div class="skeleton skeleton-card"></div>
+                </div>
               </div>
 
               <div class="glass-card reviews-panel">
@@ -108,7 +147,13 @@
                     <h2>Work photo gallery</h2>
                   </div>
                 </div>
-                <div id="provider-gallery" class="photo-gallery"></div>
+                <div id="provider-gallery" class="photo-gallery">
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
+                    <div class="skeleton" style="height:80px;border-radius:8px;"></div>
+                    <div class="skeleton" style="height:80px;border-radius:8px;"></div>
+                    <div class="skeleton" style="height:80px;border-radius:8px;"></div>
+                  </div>
+                </div>
               </div>
 
               <div class="glass-card reviews-panel">
@@ -118,7 +163,10 @@
                     <h2>What clients are saying</h2>
                   </div>
                 </div>
-                <div id="reviews-list" class="stack-grid"></div>
+                <div id="reviews-list" class="stack-grid">
+                  <div class="skeleton skeleton-card"></div>
+                  <div class="skeleton skeleton-card"></div>
+                </div>
               </div>
             </div>
 
@@ -151,8 +199,7 @@
                 </form>
               </div>
 
-              <!-- Edit Profile Section - Hidden by default, shown only to owner -->
-              <section class="glass-card edit-profile" id="edit-profile-section" style="display: none;">
+              <section class="glass-card edit-profile" id="edit-profile-section" style="display:none;">
                 <div class="panel-head">
                   <div>
                     <p class="eyebrow">Edit Profile</p>
@@ -188,16 +235,15 @@
 
   <script>
     // ── Lightbox logic ──
-    const overlay   = document.getElementById('lightbox-overlay');
-    const lightImg  = document.getElementById('lightbox-img');
-    const closeBtn  = document.getElementById('lightbox-close');
+    const overlay  = document.getElementById('lightbox-overlay');
+    const lightImg = document.getElementById('lightbox-img');
+    const closeBtn = document.getElementById('lightbox-close');
 
     function openLightbox(src) {
       lightImg.src = src;
       overlay.classList.add('active');
       document.body.style.overflow = 'hidden';
     }
-
     function closeLightbox() {
       overlay.classList.remove('active');
       lightImg.src = '';
@@ -205,31 +251,21 @@
     }
 
     closeBtn.addEventListener('click', closeLightbox);
-
-    // Click outside the image to close
-    overlay.addEventListener('click', function (e) {
+    overlay.addEventListener('click', function(e) {
       if (e.target === overlay) closeLightbox();
     });
-
-    // Escape key to close
-    document.addEventListener('keydown', function (e) {
+    document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') closeLightbox();
     });
 
-    // ── Watch for gallery images and avatar being injected by main.js ──
-    // main.js builds the DOM after the API call, so we use a MutationObserver
-    // to catch images as soon as they appear.
-    const observer = new MutationObserver(function () {
-      // Work photo thumbnails
-      document.querySelectorAll('#provider-gallery img:not(.lb-ready)').forEach(function (img) {
+    const observer = new MutationObserver(function() {
+      document.querySelectorAll('#provider-gallery img:not(.lb-ready)').forEach(function(img) {
         img.classList.add('work-photo-thumb', 'lb-ready');
-        img.addEventListener('click', function () { openLightbox(img.src); });
+        img.addEventListener('click', function() { openLightbox(img.src); });
       });
-
-      // Profile avatar (an <img> injected inside #provider-profile)
-      document.querySelectorAll('#provider-profile img:not(.lb-ready)').forEach(function (img) {
+      document.querySelectorAll('#provider-profile img:not(.lb-ready)').forEach(function(img) {
         img.classList.add('avatar-clickable', 'lb-ready');
-        img.addEventListener('click', function () { openLightbox(img.src); });
+        img.addEventListener('click', function() { openLightbox(img.src); });
       });
     });
 

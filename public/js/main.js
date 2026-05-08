@@ -2,6 +2,8 @@ const page = document.body.dataset.page;
 const providerStorageKey = "hirelocal_provider";
 const providerTokenStorageKey = "hirelocal_auth_token";
 const adminTokenStorageKey = "hirelocal_admin_token";
+const featuredProvidersCacheKey = "hirelocal_featured_cache";
+const featuredProvidersCacheTime = "hirelocal_featured_cache_time";
 const minWorkPhotos = 3;
 const maxWorkPhotos = 10;
 
@@ -219,12 +221,23 @@ form.requestSubmit();
 });
 });
 
-const loadFeaturedProviders = async () => {
+// ── Skeleton cards for homepage while providers load ──
+const showHomeSkeleton = () => {
 if (!featuredProviders) return;
-try {
-const { data } = await requestJson("/api/search", {}, false);
-const providers = (data.providers || []).slice(0, 10);
-if (!providers.length) return;
+featuredProviders.innerHTML = Array(3).fill(`
+  <article style="background:#fff;border-radius:16px;padding:1rem;margin-bottom:1rem;display:flex;gap:1rem;align-items:flex-start;">
+    <div style="width:48px;height:48px;border-radius:50%;flex-shrink:0;background:linear-gradient(90deg,#e8e8e8 25%,#f5f5f5 50%,#e8e8e8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;"></div>
+    <div style="flex:1;">
+      <div style="height:14px;width:40%;border-radius:6px;margin-bottom:0.5rem;background:linear-gradient(90deg,#e8e8e8 25%,#f5f5f5 50%,#e8e8e8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;"></div>
+      <div style="height:18px;width:70%;border-radius:6px;margin-bottom:0.5rem;background:linear-gradient(90deg,#e8e8e8 25%,#f5f5f5 50%,#e8e8e8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;"></div>
+      <div style="height:14px;width:55%;border-radius:6px;background:linear-gradient(90deg,#e8e8e8 25%,#f5f5f5 50%,#e8e8e8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;"></div>
+    </div>
+  </article>
+`).join("");
+};
+
+const renderProviderCards = (providers) => {
+if (!featuredProviders || !providers.length) return;
 featuredProviders.innerHTML = providers.map((provider) => `
 <article class="provider-horizontal-card">
   <div class="provider-card-avatar">
@@ -250,10 +263,63 @@ featuredProviders.innerHTML = providers.map((provider) => `
     <button class="view-profile-btn" onclick="window.location.href='/profile.html?id=${provider.id}'">View Profile →</button>
   </div>
 </article>`).join("");
+};
+
+const loadFeaturedProviders = async () => {
+if (!featuredProviders) return;
+
+// Step 1 — Show cached providers instantly if available (under 5 mins old)
+try {
+  const cached = localStorage.getItem(featuredProvidersCacheKey);
+  const cachedTime = localStorage.getItem(featuredProvidersCacheTime);
+  const isRecent = cachedTime && (Date.now() - Number(cachedTime)) < 5 * 60 * 1000;
+  if (cached && isRecent) {
+    const providers = JSON.parse(cached);
+    if (providers.length) {
+      renderProviderCards(providers);
+      // Still fetch fresh data in background silently
+      requestJson("/api/search", {}, false).then(({ data }) => {
+        const fresh = (data.providers || []).slice(0, 10);
+        if (fresh.length) {
+          localStorage.setItem(featuredProvidersCacheKey, JSON.stringify(fresh));
+          localStorage.setItem(featuredProvidersCacheTime, String(Date.now()));
+          renderProviderCards(fresh);
+        }
+      }).catch(() => {});
+      return;
+    }
+  }
+} catch (e) {}
+
+// Step 2 — No cache, show skeleton while fetching
+showHomeSkeleton();
+
+try {
+  const { data } = await requestJson("/api/search", {}, false);
+  const providers = (data.providers || []).slice(0, 10);
+  // Save to cache
+  try {
+    localStorage.setItem(featuredProvidersCacheKey, JSON.stringify(providers));
+    localStorage.setItem(featuredProvidersCacheTime, String(Date.now()));
+  } catch (e) {}
+  if (!providers.length) {
+    featuredProviders.innerHTML = "";
+    return;
+  }
+  renderProviderCards(providers);
 } catch (error) {
-console.error("Error loading providers:", error);
+  featuredProviders.innerHTML = "";
+  console.error("Error loading providers:", error);
 }
 };
+
+// Add shimmer keyframes to page
+if (!document.getElementById('shimmer-style')) {
+  const style = document.createElement('style');
+  style.id = 'shimmer-style';
+  style.textContent = '@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }';
+  document.head.appendChild(style);
+}
 
 loadFeaturedProviders();
 }
@@ -318,7 +384,6 @@ const reviewsList = document.getElementById("reviews-list");
 const reviewForm = document.getElementById("review-form");
 const contactLinks = document.getElementById("provider-contact-links");
 const gallery = document.getElementById("provider-gallery");
-const editSection = document.getElementById("edit-profile-section");
 const editForm = document.getElementById("edit-profile-form");
 const editPictureInput = document.getElementById("edit-profile-picture-input");
 const editPreview = document.getElementById("edit-profile-preview");
@@ -644,7 +709,7 @@ refreshButton?.addEventListener("click", loadAdminProviders);
 loadAdminProviders();
 }
 
-// ─── REGISTER ─── FIXED VERSION ─────────────────────────────────────────────
+// ─── REGISTER ────────────────────────────────────────────────────────────────
 if (page === "register") {
 const form = document.getElementById("register-form");
 const workPreview = document.getElementById("register-work-preview");
@@ -654,10 +719,8 @@ const idPhotoInput = form?.elements?.namedItem("id_photo_file");
 const profileInput = form?.elements?.namedItem("profile_picture");
 const profilePreview = document.getElementById("register-profile-preview");
 
-// Fixed: Multi-photo accumulator that APPENDS instead of REPLACES
 let collectedWorkPhotos = [];
 
-// Helper function to render work photos
 const renderWorkPhotos = () => {
 if (!workPreview) return;
 if (collectedWorkPhotos.length === 0) {
@@ -672,7 +735,6 @@ workPreview.innerHTML = collectedWorkPhotos.map((photo, index) => `
 </article>
 `).join("");
 
-// Attach remove handlers
 workPreview.querySelectorAll(".remove-photo-btn").forEach(btn => {
 btn.addEventListener("click", (e) => {
 e.stopPropagation();
@@ -683,32 +745,27 @@ renderWorkPhotos();
 });
 };
 
-// Fixed: Handle work photo selection - APPEND new photos
 if (workPhotoInput && workPreview) {
 workPhotoInput.addEventListener("change", async () => {
 try {
 const newPhotos = await readFilesAsDataUrls(workPhotoInput.files);
 if (newPhotos.length) {
-// APPEND new photos to existing ones (don't replace)
 collectedWorkPhotos = [...collectedWorkPhotos, ...newPhotos];
-// Enforce max photos limit
 if (collectedWorkPhotos.length > maxWorkPhotos) {
 collectedWorkPhotos = collectedWorkPhotos.slice(0, maxWorkPhotos);
 setStatus(form, `Maximum ${maxWorkPhotos} work photos allowed. Extra photos were removed.`, "info");
 }
 renderWorkPhotos();
 }
-workPhotoInput.value = ""; // Clear input to allow re-selecting same files
+workPhotoInput.value = "";
 } catch (error) {
 workPreview.innerHTML = `<div class="empty-state">Unable to preview photos.</div>`;
 }
 });
 }
 
-// ID photo preview
 bindFilePreview(idPhotoInput, idPreview, false);
 
-// Profile picture preview
 if (profileInput && profilePreview) {
 profileInput.addEventListener("change", async () => {
 try {
@@ -722,23 +779,15 @@ profilePreview.innerHTML = `<div class="empty-state">Unable to preview profile p
 });
 }
 
-// Form submission
 form?.addEventListener("submit", async (event) => {
 event.preventDefault();
 clearStatus(form);
 
-// Validation
 const photoError = validatePhotoCount(collectedWorkPhotos);
-if (photoError) { 
-setStatus(form, photoError, "error"); 
-return; 
-}
+if (photoError) { setStatus(form, photoError, "error"); return; }
 
 const idPhotos = await readFilesAsDataUrls(idPhotoInput?.files);
-if (!idPhotos.length) { 
-setStatus(form, "Please upload a verification ID photo.", "error"); 
-return; 
-}
+if (!idPhotos.length) { setStatus(form, "Please upload a verification ID photo.", "error"); return; }
 
 setStatus(form, "Creating your provider account...", "info");
 
@@ -774,14 +823,11 @@ if (data.success) {
 setStoredProvider(data.provider);
 setStoredProviderToken(data.token);
 setStatus(form, "Account created successfully. Redirecting...", "success");
-setTimeout(() => {
-window.location.href = "/dashboard.html";
-}, 1500);
+setTimeout(() => { window.location.href = "/dashboard.html"; }, 1500);
 } else {
 setStatus(form, data.message || "Unable to create account.", "error");
 }
 } catch (error) {
-console.error("Registration error:", error);
 setStatus(form, "Unable to create account right now. Please try again.", "error");
 }
 });
@@ -797,11 +843,8 @@ if (existingToken) {
 fetch("/api/me", {
 headers: { Authorization: `Bearer ${existingToken}` }
 }).then((res) => res.json()).then((data) => {
-if (data.success) {
-window.location.href = "/dashboard.html";
-} else {
-clearStoredProvider();
-}
+if (data.success) { window.location.href = "/dashboard.html"; }
+else { clearStoredProvider(); }
 }).catch(() => {});
 }
 
@@ -822,9 +865,7 @@ if (data.success) {
 setStoredProvider(data.provider);
 setStoredProviderToken(data.token);
 setStatus(form, "Login successful. Redirecting...", "success");
-setTimeout(() => {
-window.location.href = "/dashboard.html";
-}, 1000);
+setTimeout(() => { window.location.href = "/dashboard.html"; }, 1000);
 } else {
 setStatus(form, data.message || "Login failed.", "error");
 if (loginBtn) { loginBtn.textContent = "Login"; loginBtn.disabled = false; }
