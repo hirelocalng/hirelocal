@@ -422,5 +422,63 @@
     });
   </script>
 
+  <!-- Pull to Refresh -->
+  <script>
+    let startY = 0;
+    let isPulling = false;
+
+    const pullIndicator = document.createElement('div');
+    pullIndicator.id = 'pull-indicator';
+    pullIndicator.textContent = '↓ Pull to refresh';
+    pullIndicator.style.cssText = [
+      'position:fixed',
+      'top:-50px',
+      'left:50%',
+      'transform:translateX(-50%)',
+      'background:#0f766e',
+      'color:white',
+      'padding:0.5rem 1.2rem',
+      'border-radius:999px',
+      'font-size:0.85rem',
+      'font-weight:600',
+      'transition:top 0.25s ease',
+      'z-index:9999',
+      'pointer-events:none',
+      'white-space:nowrap'
+    ].join(';');
+    document.body.appendChild(pullIndicator);
+
+    document.addEventListener('touchstart', (e) => {
+      if (window.scrollY === 0) {
+        startY = e.touches[0].clientY;
+        isPulling = true;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!isPulling) return;
+      const distance = e.touches[0].clientY - startY;
+      if (distance > 60) {
+        pullIndicator.style.top = '16px';
+        pullIndicator.textContent = '↑ Release to refresh';
+      } else if (distance > 20) {
+        pullIndicator.style.top = '16px';
+        pullIndicator.textContent = '↓ Pull to refresh';
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (!isPulling) return;
+      const distance = e.changedTouches[0].clientY - startY;
+      if (distance > 60) {
+        pullIndicator.textContent = '↻ Refreshing...';
+        setTimeout(() => { window.location.reload(); }, 500);
+      } else {
+        pullIndicator.style.top = '-50px';
+      }
+      isPulling = false;
+    }, { passive: true });
+  </script>
+
 </body>
 </html>
