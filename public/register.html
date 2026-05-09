@@ -164,6 +164,85 @@
     </div>
   </footer>
 
+  <!-- ============================================================
+       TERMS OF SERVICE MODAL
+       ============================================================ -->
+  <div id="terms-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; overflow-y:auto; padding:20px;">
+    <div style="background:#fff; max-width:600px; margin:40px auto; border-radius:14px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,0.35);">
+
+      <!-- Modal Header -->
+      <div style="background:linear-gradient(135deg,#1a1a2e 0%,#0f3460 100%); color:white; padding:22px 28px;">
+        <h2 style="margin:0; font-size:1.15rem; font-weight:700;">Terms of Service</h2>
+        <p style="margin:5px 0 0; font-size:0.83rem; opacity:0.8;">Last updated: April 2026 &nbsp;·&nbsp; Governed by Nigerian Law</p>
+      </div>
+
+      <!-- Modal Body — scrollable -->
+      <div style="padding:24px 28px; max-height:420px; overflow-y:auto; font-size:0.9rem; line-height:1.75; color:#333;">
+
+        <p style="margin-top:0;">By creating an account on HireLocal, you confirm you have read and agree to these Terms of Service. If you do not agree, do not register.</p>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">1. What HireLocal Does</h3>
+        <p>HireLocal is a listing and discovery platform. We are not responsible for the quality, safety, or outcome of any service arranged through our platform. All services are contracted directly between client and provider.</p>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">2. Provider Responsibilities</h3>
+        <ul style="padding-left:1.25rem; margin:0.5rem 0;">
+          <li>Provide accurate and truthful profile information</li>
+          <li>Upload a valid government-issued ID for verification</li>
+          <li>Only list services you are genuinely qualified to provide</li>
+          <li>Respond to clients professionally</li>
+          <li>Not impersonate another person or business</li>
+        </ul>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">3. Client Responsibilities</h3>
+        <ul style="padding-left:1.25rem; margin:0.5rem 0;">
+          <li>Use the platform for lawful purposes only</li>
+          <li>Not harass or abuse providers</li>
+          <li>Understand HireLocal is not party to any client-provider agreement</li>
+        </ul>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">4. Subscription and Payments</h3>
+        <div style="background:#f8f9ff; border:1px solid #dde3f5; border-radius:8px; padding:10px 14px; margin:0.75rem 0; font-size:0.88rem;">
+          <strong>Free Trial:</strong> Every new provider gets <strong>7 days free</strong>. After that, <strong>₦1,000 every 14 days</strong> is required to keep your profile visible.
+        </div>
+        <ul style="padding-left:1.25rem; margin:0.5rem 0;">
+          <li>Unpaid profiles are hidden from search but not deleted</li>
+          <li>Paying anytime restores visibility immediately</li>
+          <li>Payments processed by Korapay</li>
+          <li>Subscription payments are non-refundable</li>
+        </ul>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">5. Prohibited Use</h3>
+        <ul style="padding-left:1.25rem; margin:0.5rem 0;">
+          <li>Fake or duplicate profiles</li>
+          <li>Listing illegal services</li>
+          <li>Harassment of any kind</li>
+          <li>Manipulating search rankings dishonestly</li>
+        </ul>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">6. Termination</h3>
+        <p>HireLocal can suspend or remove any account that violates these terms, without notice or refund.</p>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">7. Limitation of Liability</h3>
+        <p>HireLocal is not liable for any dispute, loss, or damage arising from services arranged between clients and providers through this platform.</p>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">8. Governing Law</h3>
+        <p>These terms are governed by the laws of the Federal Republic of Nigeria.</p>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#0f3460; border-left:3px solid #e94560; padding-left:10px; margin:1.5rem 0 0.4rem;">9. Contact</h3>
+        <p style="margin-bottom:0;"><strong>hirelocal.ng@gmail.com</strong></p>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding:16px 28px; border-top:1px solid #eee; background:#fafafa; display:flex; gap:12px; justify-content:flex-end; align-items:center;">
+        <p style="margin:0; font-size:0.82rem; color:#888; flex:1;">You must accept to create an account.</p>
+        <button type="button" id="terms-decline" style="padding:10px 20px; border:1px solid #ccc; background:#fff; border-radius:8px; cursor:pointer; font-weight:600; color:#555; font-size:0.9rem;">Decline</button>
+        <button type="button" id="terms-accept" style="padding:10px 24px; background:linear-gradient(135deg,#0f766e,#0f3460); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.9rem;">Accept & Register</button>
+      </div>
+
+    </div>
+  </div>
+
   <script>
     const MIN_WORK_PHOTOS = 3;
     const MAX_WORK_PHOTOS = 10;
@@ -171,8 +250,6 @@
 
     // ============================================================
     // IMAGE COMPRESSION
-    // Resizes image to max 1200px wide and compresses to JPEG 0.72
-    // Reduces a 5MB phone photo down to ~200-400KB
     // ============================================================
     function compressImage(file, maxWidth, quality) {
       maxWidth = maxWidth || 1200;
@@ -180,7 +257,6 @@
 
       return new Promise(function(resolve, reject) {
         if (!file) { resolve(null); return; }
-
         var reader = new FileReader();
         reader.onerror = reject;
         reader.onload = function(e) {
@@ -189,20 +265,15 @@
           img.onload = function() {
             var width = img.width;
             var height = img.height;
-
-            // Only resize if image is larger than maxWidth
             if (width > maxWidth) {
               height = Math.round((height * maxWidth) / width);
               width = maxWidth;
             }
-
             var canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
-
             var ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-
             resolve(canvas.toDataURL('image/jpeg', quality));
           };
           img.src = e.target.result;
@@ -211,17 +282,14 @@
       });
     }
 
-    // For profile and ID photos — slightly higher quality since they're single images
     function compressSinglePhoto(file) {
       return compressImage(file, 1000, 0.80);
     }
 
-    // For work photos — more compression since there are multiple
     function compressWorkPhoto(file) {
       return compressImage(file, 1200, 0.70);
     }
 
-    // Toggle password visibility
     function togglePassword(btn) {
       var input = btn.previousElementSibling;
       if (input.type === 'password') {
@@ -259,14 +327,11 @@
     async function renderWorkPhotoPreviews() {
       var workPreview = document.getElementById('register-work-preview');
       if (!workPreview) return;
-
       workPreview.innerHTML = '';
       if (!selectedWorkPhotoFiles.length) {
         workPreview.innerHTML = '<div class="empty-state">No work photos selected yet. Add ' + MIN_WORK_PHOTOS + ' to ' + MAX_WORK_PHOTOS + ' photos.</div>';
         return;
       }
-
-      // Use original files for preview (no need to compress just for preview)
       var previewPromises = selectedWorkPhotoFiles.map(function(file) {
         return new Promise(function(resolve) {
           var reader = new FileReader();
@@ -275,15 +340,11 @@
           reader.readAsDataURL(file);
         });
       });
-
       var previewUrls = await Promise.all(previewPromises);
-
       previewUrls.forEach(function(previewUrl, index) {
         if (!previewUrl) return;
-
         var tile = document.createElement('article');
         tile.className = 'photo-tile';
-
         var removeBtn = document.createElement('button');
         removeBtn.type = 'button';
         removeBtn.textContent = 'x';
@@ -295,14 +356,11 @@
             renderWorkPhotoPreviews();
           };
         })(index));
-
         var img = document.createElement('img');
         img.src = previewUrl;
         img.alt = 'Work photo ' + (index + 1);
-
         var caption = document.createElement('span');
         caption.textContent = 'Photo ' + (index + 1);
-
         tile.appendChild(removeBtn);
         tile.appendChild(img);
         tile.appendChild(caption);
@@ -314,7 +372,6 @@
     // SETUP IMAGE PREVIEWS
     // ============================================================
     function setupImagePreviews() {
-      // Profile picture preview
       var profileInput = document.querySelector('[name="profile_picture"]');
       var profilePreview = document.getElementById('register-profile-preview');
       if (profileInput && profilePreview) {
@@ -332,7 +389,6 @@
         });
       }
 
-      // ID photo preview
       var idInput = document.querySelector('[name="id_photo_file"]');
       var idPreview = document.getElementById('register-id-preview');
       if (idInput && idPreview) {
@@ -350,29 +406,24 @@
         });
       }
 
-      // Work photos — accumulate across multiple selections
       var workInput = document.querySelector('[name="work_photo_files"]');
       if (workInput) {
         renderWorkPhotoPreviews();
         workInput.addEventListener('change', async function() {
           var filesToAdd = Array.from(workInput.files || []);
           if (!filesToAdd.length) return;
-
           var availableSlots = MAX_WORK_PHOTOS - selectedWorkPhotoFiles.length;
           if (availableSlots <= 0) {
             alert('You can upload up to ' + MAX_WORK_PHOTOS + ' work photos.');
             workInput.value = '';
             return;
           }
-
           var acceptedFiles = filesToAdd.slice(0, availableSlots);
           selectedWorkPhotoFiles = selectedWorkPhotoFiles.concat(acceptedFiles);
           workInput.value = '';
-
           if (acceptedFiles.length < filesToAdd.length) {
             alert('Only ' + MAX_WORK_PHOTOS + ' work photos are allowed. Extra photos were not added.');
           }
-
           try {
             await renderWorkPhotoPreviews();
           } catch (error) {
@@ -384,11 +435,72 @@
     }
 
     // ============================================================
-    // FORM SUBMISSION
+    // VALIDATE FORM FIELDS (before showing terms modal)
     // ============================================================
-    document.getElementById('register-form').addEventListener('submit', async function(e) {
-      e.preventDefault();
+    function validateForm() {
+      var name = document.querySelector('[name="name"]').value.trim();
+      var email = document.querySelector('[name="email"]').value.trim();
+      var password = document.querySelector('[name="password"]').value;
+      var skill = document.querySelector('[name="skill"]').value.trim();
+      var state = document.querySelector('[name="state"]').value.trim();
+      var idType = document.querySelector('[name="id_type"]').value;
+      var idFile = document.querySelector('[name="id_photo_file"]').files[0];
 
+      if (!name || !email || !password || !skill || !state) {
+        alert('Please fill all required fields.');
+        return false;
+      }
+      if (!email.includes('@')) {
+        alert('Please enter a valid email address.');
+        return false;
+      }
+      if (password.length < 6) {
+        alert('Password must be at least 6 characters.');
+        return false;
+      }
+      if (!idType) {
+        alert('Please select your ID type.');
+        return false;
+      }
+      if (!idFile) {
+        alert('Please upload your ID photo for verification.');
+        return false;
+      }
+      if (selectedWorkPhotoFiles.length < MIN_WORK_PHOTOS || selectedWorkPhotoFiles.length > MAX_WORK_PHOTOS) {
+        alert('Please upload between ' + MIN_WORK_PHOTOS + ' and ' + MAX_WORK_PHOTOS + ' work photos.');
+        return false;
+      }
+      return true;
+    }
+
+    // ============================================================
+    // TERMS MODAL
+    // ============================================================
+    document.getElementById('terms-decline').addEventListener('click', function() {
+      document.getElementById('terms-modal').style.display = 'none';
+    });
+
+    document.getElementById('terms-accept').addEventListener('click', function() {
+      document.getElementById('terms-modal').style.display = 'none';
+      submitRegistration();
+    });
+
+    // ============================================================
+    // FORM SUBMIT — validate first, then show terms modal
+    // ============================================================
+    document.getElementById('register-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!validateForm()) return;
+      document.getElementById('terms-modal').style.display = 'block';
+      // Scroll modal to top in case user scrolled it previously
+      var modalBody = document.querySelector('#terms-modal > div > div:nth-child(2)');
+      if (modalBody) modalBody.scrollTop = 0;
+    });
+
+    // ============================================================
+    // ACTUAL REGISTRATION — runs after terms accepted
+    // ============================================================
+    async function submitRegistration() {
       var submitBtn = document.getElementById('submit-btn');
       submitBtn.textContent = 'Please wait...';
       submitBtn.disabled = true;
@@ -396,7 +508,6 @@
       setProgress(5, 'Validating your details...');
 
       try {
-        // --- Collect text fields ---
         var formData = {
           name: document.querySelector('[name="name"]').value.trim(),
           email: document.querySelector('[name="email"]').value.trim(),
@@ -412,42 +523,21 @@
           id_type: document.querySelector('[name="id_type"]').value,
         };
 
-        // --- Basic validation ---
-        if (!formData.name || !formData.email || !formData.password || !formData.skill || !formData.state) {
-          throw new Error('Please fill all required fields.');
-        }
-        if (formData.password.length < 6) {
-          throw new Error('Password must be at least 6 characters.');
-        }
-        if (!formData.id_type) {
-          throw new Error('Please select your ID type.');
-        }
-        if (!formData.email.includes('@')) {
-          throw new Error('Please enter a valid email address.');
-        }
-
         var idFile = document.querySelector('[name="id_photo_file"]').files[0];
-        if (!idFile) {
-          throw new Error('Please upload your ID photo for verification.');
-        }
-
         var workFiles = selectedWorkPhotoFiles;
-        if (workFiles.length < MIN_WORK_PHOTOS || workFiles.length > MAX_WORK_PHOTOS) {
-          throw new Error('Please upload between ' + MIN_WORK_PHOTOS + ' and ' + MAX_WORK_PHOTOS + ' work photos.');
-        }
-
-        // --- Compress profile picture ---
-        setProgress(15, 'Compressing profile picture...');
         var profileFile = document.querySelector('[name="profile_picture"]').files[0];
+
+        // Compress profile picture
+        setProgress(15, 'Compressing profile picture...');
         if (profileFile) {
           formData.photo = await compressSinglePhoto(profileFile);
         }
 
-        // --- Compress ID photo ---
+        // Compress ID photo
         setProgress(30, 'Compressing ID photo...');
         formData.id_photo = await compressSinglePhoto(idFile);
 
-        // --- Compress work photos one by one with progress ---
+        // Compress work photos one by one
         var compressedWorkPhotos = [];
         for (var i = 0; i < workFiles.length; i++) {
           var progressPercent = 30 + Math.round(((i + 1) / workFiles.length) * 50);
@@ -457,9 +547,8 @@
         }
         formData.work_photos = compressedWorkPhotos;
 
-        // --- Send to server ---
+        // Send to server
         setProgress(85, 'Uploading your profile...');
-
         var response = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -467,7 +556,6 @@
         });
 
         setProgress(95, 'Finishing up...');
-
         var result = await response.json();
 
         if (!result.success) {
@@ -475,7 +563,6 @@
         }
 
         setProgress(100, 'Account created!');
-
         localStorage.setItem('hirelocal_auth_token', result.token);
         localStorage.setItem('hirelocal_provider', JSON.stringify(result.provider));
 
@@ -490,7 +577,7 @@
         submitBtn.textContent = 'Create Account';
         submitBtn.disabled = false;
       }
-    });
+    }
 
     document.addEventListener('DOMContentLoaded', setupImagePreviews);
   </script>
