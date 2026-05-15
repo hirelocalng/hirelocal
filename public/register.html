@@ -143,6 +143,7 @@
               </div>
             </div>
 
+            <div id="register-error" class="full-width" style="display:none; background:#fee; color:#c33; padding:12px; border-radius:8px; margin-bottom:4px;"></div>
             <button type="submit" class="button primary full-width-button" id="submit-btn">Create Account</button>
             <p class="form-note">Already registered? <a href="/login.html">Login here</a>.</p>
           </form>
@@ -500,10 +501,39 @@
     // ============================================================
     // ACTUAL REGISTRATION — runs after terms accepted
     // ============================================================
+    function showRegisterError(message) {
+      var errorDiv = document.getElementById('register-error');
+      if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function hideRegisterError() {
+      var errorDiv = document.getElementById('register-error');
+      if (errorDiv) errorDiv.style.display = 'none';
+    }
+
+    async function safeParseJson(response) {
+      var contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        return response.json();
+      }
+      await response.text();
+      return {
+        success: false,
+        message: response.ok
+          ? 'Unexpected server response. Please refresh and try again.'
+          : 'Server error (' + response.status + '). Please try again.'
+      };
+    }
+
     async function submitRegistration() {
       var submitBtn = document.getElementById('submit-btn');
       submitBtn.textContent = 'Please wait...';
       submitBtn.disabled = true;
+      hideRegisterError();
       showProgress();
       setProgress(5, 'Validating your details...');
 
@@ -551,12 +581,15 @@
         setProgress(85, 'Uploading your profile...');
         var response = await fetch('/api/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify(formData)
         });
 
         setProgress(95, 'Finishing up...');
-        var result = await response.json();
+        var result = await safeParseJson(response);
 
         if (!result.success) {
           throw new Error(result.message || 'Registration failed');
@@ -573,7 +606,7 @@
       } catch (error) {
         console.error('Registration error:', error);
         hideProgress();
-        alert(error.message);
+        showRegisterError(error.message || 'Registration failed. Please try again.');
         submitBtn.textContent = 'Create Account';
         submitBtn.disabled = false;
       }
