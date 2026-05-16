@@ -103,9 +103,8 @@ footer {
   position: sticky;
   top: 0;
   z-index: 30;
-  backdrop-filter: blur(18px);
-  background: rgba(243, 239, 231, 0.72);
-  border-bottom: 1px solid rgba(16, 35, 29, 0.08);
+  background: var(--surface-dark);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
 }
 
 .nav {
@@ -131,6 +130,7 @@ h3,
   font-size: 1.65rem;
   font-weight: 700;
   letter-spacing: -0.04em;
+  color: #fff;
 }
 
 .nav-links {
@@ -140,8 +140,12 @@ h3,
 }
 
 .nav-links a {
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.82);
   font-weight: 600;
+}
+
+.nav-links a:hover {
+  color: #fff;
 }
 
 .hero {
