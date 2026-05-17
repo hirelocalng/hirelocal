@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "HireLocal",
+    "slug": "hirelocal-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon-512.png",
+    "splash": {
+      "image": "./assets/icon-512.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#17352f"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ng.hirelocal.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "HireLocal uses your location to find service providers near you.",
+        "NSLocationAlwaysUsageDescription": "HireLocal uses your location to find service providers near you."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-512.png",
+        "backgroundColor": "#17352f"
+      },
+      "package": "ng.hirelocal.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "web": {},
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "HireLocal needs access to your photos to upload work samples and profile pictures."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "HireLocal uses your location to find service providers near you."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon-512.png",
+          "color": "#17352f",
+          "sounds": []
+        }
+      ],
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7f6f7d2c-1d57-49d2-a7a4-245cc3c5af4c"
+      }
+    }
+  }
+}

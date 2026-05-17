@@ -1,0 +1,12 @@
+.expo/
+android/
+ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
