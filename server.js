@@ -5,6 +5,9 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const { Expo } = require('expo-server-sdk');
+
+const expo = new Expo();
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -400,6 +403,14 @@ await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(email)
+)`);
+
+await pool.query(`CREATE TABLE IF NOT EXISTS push_tokens (
+  id SERIAL PRIMARY KEY,
+  provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  token VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(provider_id)
 )`);
 
 console.log('Tables created successfully');
@@ -1070,6 +1081,103 @@ app.post('/api/contact',
   } catch (err) {
     console.error('Contact form error:', err.message);
     res.status(500).json({ success: false, message: 'Unable to send message. Please try again.' });
+  }
+});
+
+// ============================================================
+// PUSH NOTIFICATIONS
+// ============================================================
+async function sendPushNotification(pushToken, title, body, data = {}) {
+  if (!Expo.isExpoPushToken(pushToken)) return;
+  try {
+    const chunks = expo.chunkPushNotifications([{ to: pushToken, sound: 'default', title, body, data }]);
+    for (const chunk of chunks) {
+      await expo.sendPushNotificationsAsync(chunk);
+    }
+  } catch (err) {
+    console.error('Push notification error:', err.message);
+  }
+}
+
+// Store Expo push token for authenticated provider
+app.post('/api/push-token', async (req, res) => {
+  if (!pool) return sendDatabaseUnavailable(res);
+  const auth = getProviderAuth(req);
+  if (!auth?.sub) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  const token = sanitizeText(req.body.token);
+  if (!token) return res.status(400).json({ success: false, message: 'Push token is required.' });
+  if (!Expo.isExpoPushToken(token)) {
+    return res.status(400).json({ success: false, message: 'Invalid Expo push token.' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO push_tokens (provider_id, token) VALUES ($1, $2)
+       ON CONFLICT (provider_id) DO UPDATE SET token = $2, created_at = NOW()`,
+      [auth.sub, token]
+    );
+    res.json({ success: true, message: 'Push token registered.' });
+  } catch (err) {
+    console.error('Push token error:', err.message);
+    res.status(500).json({ success: false, message: 'Unable to register push token.' });
+  }
+});
+
+// Notify provider when their profile is viewed
+app.post('/api/profile-view', async (req, res) => {
+  if (!pool) return sendDatabaseUnavailable(res);
+  const providerId = Number(req.body.provider_id);
+  if (!Number.isInteger(providerId) || providerId <= 0) {
+    return res.status(400).json({ success: false, message: 'Valid provider_id is required.' });
+  }
+  try {
+    const tokenResult = await pool.query(
+      'SELECT token FROM push_tokens WHERE provider_id = $1',
+      [providerId]
+    );
+    if (tokenResult.rows.length > 0) {
+      await sendPushNotification(
+        tokenResult.rows[0].token,
+        'Profile Viewed',
+        'Someone just viewed your HireLocal profile!',
+        { type: 'profile_view', providerId }
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Profile view notification error:', err.message);
+    res.status(500).json({ success: false, message: 'Unable to process profile view.' });
+  }
+});
+
+// Notify provider when someone contacts them
+app.post('/api/contact-event', async (req, res) => {
+  if (!pool) return sendDatabaseUnavailable(res);
+  const providerId = Number(req.body.provider_id);
+  const contactType = sanitizeText(req.body.type);
+  if (!Number.isInteger(providerId) || providerId <= 0) {
+    return res.status(400).json({ success: false, message: 'Valid provider_id is required.' });
+  }
+  const allowed = ['call', 'whatsapp', 'email'];
+  const type = allowed.includes(contactType) ? contactType : 'contact';
+  const labels = { call: 'call', whatsapp: 'WhatsApp message', email: 'email' };
+  const label = labels[type] || 'contact';
+  try {
+    const tokenResult = await pool.query(
+      'SELECT token FROM push_tokens WHERE provider_id = $1',
+      [providerId]
+    );
+    if (tokenResult.rows.length > 0) {
+      await sendPushNotification(
+        tokenResult.rows[0].token,
+        'New Contact',
+        `Someone wants to reach you via ${label} on HireLocal!`,
+        { type: 'contact_event', contactType: type, providerId }
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Contact event notification error:', err.message);
+    res.status(500).json({ success: false, message: 'Unable to process contact event.' });
   }
 });
 
