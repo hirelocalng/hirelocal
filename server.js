@@ -5,9 +5,8 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
-const { Expo } = require('expo-server-sdk');
-
-const expo = new Expo();
+let Expo = null;
+let expo = null;
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -431,7 +430,17 @@ console.error('Subscription cleanup error:', error.message);
 }
 }
 
+async function initExpo() {
+  try {
+    ({ Expo } = await import('expo-server-sdk'));
+    expo = new Expo();
+  } catch (err) {
+    console.error('Failed to load expo-server-sdk:', err.message);
+  }
+}
+
 createTables().then(() => deactivateExpiredProviders());
+initExpo();
 setInterval(() => { deactivateExpiredProviders(); }, CLEANUP_INTERVAL_MS);
 
 // ============================================================
@@ -1088,7 +1097,7 @@ app.post('/api/contact',
 // PUSH NOTIFICATIONS
 // ============================================================
 async function sendPushNotification(pushToken, title, body, data = {}) {
-  if (!Expo.isExpoPushToken(pushToken)) return;
+  if (!expo || !Expo || !Expo.isExpoPushToken(pushToken)) return;
   try {
     const chunks = expo.chunkPushNotifications([{ to: pushToken, sound: 'default', title, body, data }]);
     for (const chunk of chunks) {
@@ -1106,7 +1115,7 @@ app.post('/api/push-token', async (req, res) => {
   if (!auth?.sub) return res.status(401).json({ success: false, message: 'Unauthorized' });
   const token = sanitizeText(req.body.token);
   if (!token) return res.status(400).json({ success: false, message: 'Push token is required.' });
-  if (!Expo.isExpoPushToken(token)) {
+  if (!Expo || !Expo.isExpoPushToken(token)) {
     return res.status(400).json({ success: false, message: 'Invalid Expo push token.' });
   }
   try {
