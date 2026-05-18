@@ -5,6 +5,7 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const sharp = require('sharp');
 const isExpoPushToken = (token) => /^Expo(nent)?PushToken\[.+\]$/.test(token);
 
 const app = express();
@@ -195,11 +196,22 @@ const validateWorkPhotos = (photos) => {
 if (photos.length < MIN_WORK_PHOTOS || photos.length > MAX_WORK_PHOTOS) {
 return `Please upload between ${MIN_WORK_PHOTOS} and ${MAX_WORK_PHOTOS} work photos.`;
 }
-if (!photos.every(isImageDataUrl)) {
-return 'Work photos must be valid images.';
-}
 return null;
 };
+
+async function processImageToJpeg(dataUrl) {
+if (!dataUrl || typeof dataUrl !== 'string') return null;
+const match = dataUrl.match(/^data:[^;]+;base64,(.+)$/s);
+if (!match) return null;
+try {
+const buffer = Buffer.from(match[1], 'base64');
+const jpegBuffer = await sharp(buffer).rotate().jpeg({ quality: 80 }).toBuffer();
+return 'data:image/jpeg;base64,' + jpegBuffer.toString('base64');
+} catch (err) {
+console.error('Image processing error:', err.message);
+return null;
+}
+}
 
 const canChangeName = (nameChangedAt) => {
 if (!nameChangedAt) return true;
@@ -468,8 +480,9 @@ return res.status(400).json({ success: false, message: 'Please enter a valid ema
 if (password.length < 6) {
 return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
 }
-const photoError = validateWorkPhotos(workPhotos);
-if (photoError) return res.status(400).json({ success: false, message: photoError });
+if (workPhotos.length < MIN_WORK_PHOTOS || workPhotos.length > MAX_WORK_PHOTOS) {
+return res.status(400).json({ success: false, message: `Please upload between ${MIN_WORK_PHOTOS} and ${MAX_WORK_PHOTOS} work photos.` });
+}
 if (!idType) {
 return res.status(400).json({ success: false, message: 'Please select the ID type for verification.' });
 }
@@ -478,11 +491,20 @@ return res.status(400).json({ success: false, message: 'Please upload a valid ID
 }
 
 try {
+const processedIdPhoto = await processImageToJpeg(idPhoto);
+if (!processedIdPhoto) {
+return res.status(400).json({ success: false, message: 'Could not process your ID photo. Please try a different image.' });
+}
+const processedPhoto = await processImageToJpeg(photo);
+const processedWorkPhotos = (await Promise.all(workPhotos.map(p => processImageToJpeg(p)))).filter(Boolean);
+if (processedWorkPhotos.length < MIN_WORK_PHOTOS) {
+return res.status(400).json({ success: false, message: `Please upload at least ${MIN_WORK_PHOTOS} valid work photos.` });
+}
 const passwordHash = await hashPassword(password);
 const result = await pool.query(
 `INSERT INTO providers ( name, email, phone, whatsapp, password, skill, category, state, lga, city, bio, photo, work_photos, id_type, id_photo, subscription_expiry, is_active ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days',true) RETURNING ${publicProviderColumns}`,
 [name, email, phone, whatsapp, passwordHash, skill, category, state, lga, city, bio,
-photo, JSON.stringify(workPhotos), idType, idPhoto]
+processedPhoto, JSON.stringify(processedWorkPhotos), idType, processedIdPhoto]
 );
 const provider = enrichProvider(result.rows[0]);
 const token = signToken({ role: 'provider', sub: provider.id }, 60 * 60 * 24 * 14);
@@ -742,7 +764,17 @@ return res.status(404).json({ success: false, message: 'Provider not found.' });
 
 const currentName = current.rows[0].name;
 const nameChangedAt = current.rows[0].name_changed_at;
-const finalWorkPhotos = workPhotosProvided ? workPhotos : parsePhotoArray(current.rows[0].work_photos);
+let finalWorkPhotos;
+if (workPhotosProvided) {
+const processed = (await Promise.all(workPhotos.map(p => processImageToJpeg(p)))).filter(Boolean);
+if (processed.length < MIN_WORK_PHOTOS) {
+return res.status(400).json({ success: false, message: `Please upload at least ${MIN_WORK_PHOTOS} valid work photos.` });
+}
+finalWorkPhotos = processed;
+} else {
+finalWorkPhotos = parsePhotoArray(current.rows[0].work_photos);
+}
+const processedUpdatePhoto = (photo !== undefined) ? await processImageToJpeg(photo) : undefined;
 const nameIsChanging = newName && newName !== currentName;
 
 if (nameIsChanging) {
@@ -758,13 +790,13 @@ message: `You can only change your name once every 30 days. You can change it ag
 const finalName = nameIsChanging ? newName : currentName;
 let query, params;
 
-if (photo !== undefined && nameIsChanging) {
+if (processedUpdatePhoto !== undefined && nameIsChanging) {
 query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb, photo=$11 WHERE id=$12 RETURNING ${ownerProviderColumns}`;
-params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), photo, auth.sub];
-} else if (photo !== undefined && !nameIsChanging) {
+params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), processedUpdatePhoto, auth.sub];
+} else if (processedUpdatePhoto !== undefined && !nameIsChanging) {
 query = `UPDATE providers SET phone=$1, whatsapp=$2, skill=$3, category=$4, state=$5, lga=$6, city=$7, bio=$8, work_photos=$9::jsonb, photo=$10 WHERE id=$11 RETURNING ${ownerProviderColumns}`;
-params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), photo, auth.sub];
-} else if (photo === undefined && nameIsChanging) {
+params = [phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), processedUpdatePhoto, auth.sub];
+} else if (processedUpdatePhoto === undefined && nameIsChanging) {
 query = `UPDATE providers SET name=$1, name_changed_at=NOW(), phone=$2, whatsapp=$3, skill=$4, category=$5, state=$6, lga=$7, city=$8, bio=$9, work_photos=$10::jsonb WHERE id=$11 RETURNING ${ownerProviderColumns}`;
 params = [finalName, phone, whatsapp, skill, category, state, lga, city, bio, JSON.stringify(finalWorkPhotos), auth.sub];
 } else {
