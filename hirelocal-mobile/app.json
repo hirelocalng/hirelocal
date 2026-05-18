@@ -20,10 +20,7 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/icon-512.png",
-        "backgroundColor": "#17352f"
-      },
+      "icon": "./assets/icon-512.png",
       "package": "ng.hirelocal.app",
       "permissions": [
         "android.permission.RECORD_AUDIO",
