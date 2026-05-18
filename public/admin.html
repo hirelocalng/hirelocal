@@ -274,7 +274,8 @@
           </p>
 
           ${provider.id_type ? `<p class="admin-card-meta" style="margin-bottom:0.5rem;">ID Type: <strong>${provider.id_type}</strong></p>` : ''}
-          ${provider.id_photo ? `<img src="${provider.id_photo}" alt="ID Photo" class="admin-id-photo" />` : ''}
+          <button onclick="loadIdPhoto(${provider.id}, this)" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:0.35rem 0.8rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem;">View ID Photo</button>
+          <div id="id-photo-${provider.id}"></div>
 
           <div class="admin-card-actions" style="margin-top:0.85rem;">
             ${!isVerified ? `<button class="btn-verify" onclick="verifyProvider(${provider.id}, this)">✓ Verify</button>` : `<button class="btn-verify" disabled>✓ Verified</button>`}
@@ -403,6 +404,27 @@
         showMsg(id, 'Network error. Try again.', 'error');
         btn.disabled = false;
         btn.textContent = 'Delete';
+      }
+    }
+
+    async function loadIdPhoto(id, btn) {
+      btn.disabled = true;
+      btn.textContent = 'Loading...';
+      try {
+        const res = await fetch(`/api/admin/provider/${id}`, {
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        const data = await res.json();
+        const container = document.getElementById(`id-photo-${id}`);
+        if (data.success && data.provider.id_photo) {
+          container.innerHTML = `<img src="${data.provider.id_photo}" alt="ID Photo" class="admin-id-photo" />`;
+        } else {
+          container.textContent = 'No ID photo available.';
+        }
+        btn.style.display = 'none';
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'View ID Photo';
       }
     }
 

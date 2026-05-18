@@ -144,6 +144,9 @@ const ownerProviderColumns = `${publicProviderColumns}, id_type, name_changed_at
 
 const adminProviderColumns = `${publicProviderColumns}, id_type, id_photo, name_changed_at`;
 
+// List view excludes work_photos and id_photo (large base64 blobs) for fast page load
+const adminListColumns = `id, name, email, phone, whatsapp, skill, category, state, lga, city, bio, photo, id_type, plan, verified, rating, review_count, views, created_at, subscription_expiry, is_active, name_changed_at`;
+
 const sendDatabaseUnavailable = (res) =>
 res.status(503).json({
 success: false,
@@ -967,8 +970,23 @@ if (!pool) return sendDatabaseUnavailable(res);
 const adminAuth = getAdminAuth(req);
 if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
 try {
-const result = await pool.query(`SELECT ${adminProviderColumns} FROM providers ORDER BY created_at DESC`);
+const result = await pool.query(`SELECT ${adminListColumns} FROM providers ORDER BY created_at DESC`);
 res.json({ success: true, providers: result.rows.map(enrichProvider) });
+} catch (err) {
+res.status(500).json({ success: false, message: err.message });
+}
+});
+
+app.get('/api/admin/provider/:id', async (req, res) => {
+if (!pool) return sendDatabaseUnavailable(res);
+const adminAuth = getAdminAuth(req);
+if (!adminAuth) return res.status(401).json({ success: false, message: 'Unauthorized' });
+const providerId = Number(req.params.id);
+if (!Number.isInteger(providerId)) return res.status(400).json({ success: false, message: 'Invalid provider id.' });
+try {
+const result = await pool.query(`SELECT ${adminProviderColumns} FROM providers WHERE id=$1`, [providerId]);
+if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Provider not found.' });
+res.json({ success: true, provider: enrichProvider(result.rows[0]) });
 } catch (err) {
 res.status(500).json({ success: false, message: err.message });
 }
