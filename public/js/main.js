@@ -279,7 +279,7 @@ try {
       renderProviderCards(providers);
       // Still fetch fresh data in background silently
       requestJson("/api/search", {}, false).then(({ data }) => {
-        const fresh = (data.providers || []).slice(0, 10);
+        const fresh = data.providers || [];
         if (fresh.length) {
           localStorage.setItem(featuredProvidersCacheKey, JSON.stringify(fresh));
           localStorage.setItem(featuredProvidersCacheTime, String(Date.now()));
@@ -296,7 +296,7 @@ showHomeSkeleton();
 
 try {
   const { data } = await requestJson("/api/search", {}, false);
-  const providers = (data.providers || []).slice(0, 10);
+  const providers = data.providers || [];
   // Save to cache
   try {
     localStorage.setItem(featuredProvidersCacheKey, JSON.stringify(providers));
