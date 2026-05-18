@@ -415,7 +415,7 @@
           if (!filesToAdd.length) return;
           var availableSlots = MAX_WORK_PHOTOS - selectedWorkPhotoFiles.length;
           if (availableSlots <= 0) {
-            alert('You can upload up to ' + MAX_WORK_PHOTOS + ' work photos.');
+            showRegisterError('You can upload up to ' + MAX_WORK_PHOTOS + ' work photos.');
             workInput.value = '';
             return;
           }
@@ -423,7 +423,7 @@
           selectedWorkPhotoFiles = selectedWorkPhotoFiles.concat(acceptedFiles);
           workInput.value = '';
           if (acceptedFiles.length < filesToAdd.length) {
-            alert('Only ' + MAX_WORK_PHOTOS + ' work photos are allowed. Extra photos were not added.');
+            showRegisterError('Only ' + MAX_WORK_PHOTOS + ' work photos are allowed. Extra photos were not added.');
           }
           try {
             await renderWorkPhotoPreviews();
@@ -575,7 +575,7 @@
           var compressed = await compressWorkPhoto(workFiles[i]);
           compressedWorkPhotos.push(compressed);
         }
-        formData.work_photos = compressedWorkPhotos;
+        formData.work_photos = compressedWorkPhotos.filter(Boolean);
 
         // Send to server
         setProgress(85, 'Uploading your profile...');

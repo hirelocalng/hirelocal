@@ -131,6 +131,7 @@
         }
       }).then(parseApiResponse).then(data => {
         if (data.success) {
+          localStorage.setItem('hirelocal_provider', JSON.stringify(data.provider));
           window.location.href = '/dashboard.html';
         } else {
           localStorage.removeItem('hirelocal_auth_token');

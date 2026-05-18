@@ -483,12 +483,12 @@ photo, JSON.stringify(workPhotos), idType, idPhoto]
 );
 const provider = enrichProvider(result.rows[0]);
 const token = signToken({ role: 'provider', sub: provider.id }, 60 * 60 * 24 * 14);
-await sendEmail(email, 'Welcome to HireLocal!', `<h2>Welcome, ${name}!</h2> <p>Your profile is now live on HireLocal for 7 days free.</p> <p>After 7 days, pay ₦1,000 every 14 days to keep your profile visible.</p> <p><a href="https://hirelocal.ng/login.html">Login to your dashboard</a></p>`);
+sendEmail(email, 'Welcome to HireLocal!', `<h2>Welcome, ${name}!</h2> <p>Your profile is now live on HireLocal for 7 days free.</p> <p>After 7 days, pay ₦1,000 every 14 days to keep your profile visible.</p> <p><a href="https://hirelocal.ng/login.html">Login to your dashboard</a></p>`);
 res.json({ success: true, provider, token });
 } catch (err) {
 console.error('Register error:', err.message);
-const message = err.code === '23505' ? 'Email already exists.' : 'Unable to create account right now.';
-res.status(400).json({ success: false, message });
+if (err.code === '23505') return res.status(409).json({ success: false, message: 'Email already exists.' });
+res.status(500).json({ success: false, message: 'Unable to create account right now.' });
 }
 });
 
