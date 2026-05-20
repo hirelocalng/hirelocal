@@ -1,6 +1,8 @@
 import { getToken } from './storage';
 
-const BASE_URL = 'https://hirelocal.ng';
+const PROD_URL = 'https://hirelocal.ng';
+const DEV_URL = 'http://localhost:3000'; // Change to your local machine IP when testing on a physical device
+const BASE_URL = __DEV__ ? DEV_URL : PROD_URL;
 
 async function request(path, options = {}, withAuth = true) {
   const headers = {
@@ -82,8 +84,8 @@ export const api = {
   logProfileView: (provider_id) =>
     request('/api/profile-view', { method: 'POST', body: JSON.stringify({ provider_id }) }, false),
 
-  logContact: (provider_id, method) =>
-    request('/api/contact-event', { method: 'POST', body: JSON.stringify({ provider_id, method }) }, false),
+  logContact: (provider_id, type) =>
+    request('/api/contact-event', { method: 'POST', body: JSON.stringify({ provider_id, type }) }, false),
 };
 
 export const formatLocation = (provider = {}) =>

@@ -165,6 +165,16 @@ if (typeof value !== 'string') return '';
 return value.trim();
 };
 
+const escapeHtml = (str) => {
+if (typeof str !== 'string') return '';
+return str
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+};
+
 const sanitizeOptionalText = (value) => {
 const trimmed = sanitizeText(value);
 return trimmed || null;
@@ -266,6 +276,8 @@ if (!token) return null;
 const parts = token.split('.');
 if (parts.length !== 3) return null;
 const [encodedHeader, encodedPayload, incomingSignature] = parts;
+const header = JSON.parse(base64UrlDecode(encodedHeader));
+if (!header || header.alg !== 'HS256') return null;
 const expectedSignature = crypto
 .createHmac('sha256', tokenSecret)
 .update(`${encodedHeader}.${encodedPayload}`)
@@ -508,7 +520,7 @@ processedPhoto, JSON.stringify(processedWorkPhotos), idType, processedIdPhoto]
 );
 const provider = enrichProvider(result.rows[0]);
 const token = signToken({ role: 'provider', sub: provider.id }, 60 * 60 * 24 * 14);
-sendEmail(email, 'Welcome to HireLocal!', `<h2>Welcome, ${name}!</h2> <p>Your profile is now live on HireLocal for 7 days free.</p> <p>After 7 days, pay ₦1,000 every 14 days to keep your profile visible.</p> <p><a href="https://hirelocal.ng/login.html">Login to your dashboard</a></p>`);
+sendEmail(email, 'Welcome to HireLocal!', `<h2>Welcome, ${escapeHtml(name)}!</h2> <p>Your profile is now live on HireLocal for 7 days free.</p> <p>After 7 days, pay ₦1,000 every 14 days to keep your profile visible.</p> <p><a href="https://hirelocal.ng/login.html">Login to your dashboard</a></p>`);
 res.json({ success: true, provider, token });
 } catch (err) {
 console.error('Register error:', err.message);
@@ -608,7 +620,7 @@ const html = `
 <div class="container">
 <div class="header"><h2>Password Reset Request</h2></div>
 <div class="content">
-<p>Hello ${user.name},</p>
+<p>Hello ${escapeHtml(user.name)},</p>
 <p>We received a request to reset your HireLocal account password.</p>
 <p style="text-align: center;"><a href="${resetLink}" class="button">Reset Password</a></p>
 <p>Or copy and paste this link into your browser:</p>
@@ -831,7 +843,7 @@ if (category) { sql += ` AND (category ILIKE $${count} OR skill ILIKE $${count})
 if (state) { sql += ` AND state ILIKE $${count++}`; params.push(`%${state}%`); }
 if (lga) { sql += ` AND lga ILIKE $${count++}`; params.push(`%${lga}%`); }
 if (query) { sql += ` AND (name ILIKE $${count} OR skill ILIKE $${count} OR bio ILIKE $${count})`; params.push(`%${query}%`); count++; }
-sql += ' ORDER BY verified DESC, plan DESC, rating DESC, created_at DESC';
+sql += ' ORDER BY verified DESC, plan DESC, rating DESC, created_at DESC LIMIT 100';
 try {
 const result = await pool.query(sql, params);
 try {
@@ -982,13 +994,20 @@ if (korapayStatus !== 'success' || amountPaid < SUBSCRIPTION_AMOUNT_NGN) {
 await pool.query(`UPDATE payments SET transaction_reference=$1, status=$2, raw_response=$3::jsonb WHERE id=$4`, [transactionReference, 'failed', JSON.stringify(payload), paymentRecord.id]);
 return res.status(400).json({ success: false, message: 'Payment is not yet successful.' });
 }
-await pool.query('BEGIN');
-await pool.query(`UPDATE payments SET transaction_reference=$1, status='success', raw_response=$2::jsonb, paid_at=NOW() WHERE id=$3`, [transactionReference, JSON.stringify(payload), paymentRecord.id]);
-const providerUpdate = await pool.query(`UPDATE providers SET subscription_expiry = GREATEST(COALESCE(subscription_expiry, NOW()), NOW()) + INTERVAL '${SUBSCRIPTION_RENEWAL_DAYS} days', is_active = true WHERE id=$1 RETURNING ${ownerProviderColumns}`, [auth.sub]);
-await pool.query('COMMIT');
-res.json({ success: true, message: 'Subscription renewed successfully.', provider: enrichProvider(providerUpdate.rows[0]) });
+const client = await pool.connect();
+try {
+  await client.query('BEGIN');
+  await client.query(`UPDATE payments SET transaction_reference=$1, status='success', raw_response=$2::jsonb, paid_at=NOW() WHERE id=$3`, [transactionReference, JSON.stringify(payload), paymentRecord.id]);
+  const providerUpdate = await client.query(`UPDATE providers SET subscription_expiry = GREATEST(COALESCE(subscription_expiry, NOW()), NOW()) + INTERVAL '${SUBSCRIPTION_RENEWAL_DAYS} days', is_active = true WHERE id=$1 RETURNING ${ownerProviderColumns}`, [auth.sub]);
+  await client.query('COMMIT');
+  res.json({ success: true, message: 'Subscription renewed successfully.', provider: enrichProvider(providerUpdate.rows[0]) });
+} catch (txError) {
+  await client.query('ROLLBACK').catch(e => console.error('Rollback error:', e.message));
+  throw txError;
+} finally {
+  client.release();
+}
 } catch (error) {
-try { await pool.query('ROLLBACK'); } catch (e) { console.error('Rollback error:', e.message); }
 console.error('Payment verify error:', error.message);
 res.status(500).json({ success: false, message: 'Unable to verify payment right now.' });
 }
@@ -1114,11 +1133,11 @@ app.post('/api/contact',
       `
       <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
         <h2 style="color: #0f766e;">New Contact Form Submission</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(email)}</p>
         <p><strong>Message:</strong></p>
         <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-top: 10px;">
-          ${message.replace(/\n/g, '<br>')}
+          ${escapeHtml(message).replace(/\n/g, '<br>')}
         </div>
         <hr>
         <p style="font-size: 12px; color: #777;">Sent from HireLocal contact form</p>
