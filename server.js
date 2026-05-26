@@ -138,6 +138,20 @@ app.use(session({
     maxAge: 10 * 60 * 1000
   }
 }));
+
+// Passport 0.6+ calls req.session.regenerate() and req.session.save() during
+// login. Some session store configurations on Railway don't attach these methods
+// to the session object, causing a TypeError. This shim ensures they exist.
+app.use((req, res, next) => {
+  if (req.session && !req.session.regenerate) {
+    req.session.regenerate = (cb) => cb();
+  }
+  if (req.session && !req.session.save) {
+    req.session.save = (cb) => cb();
+  }
+  next();
+});
+
 app.use(passport.initialize());
 app.use(passport.session());
 
