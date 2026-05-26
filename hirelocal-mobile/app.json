@@ -2,6 +2,7 @@
   "expo": {
     "name": "HireLocal",
     "slug": "hirelocal-mobile",
+    "scheme": "hirelocal",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -52,7 +53,8 @@
           "sounds": []
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

@@ -4,9 +4,14 @@ import {
   ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
+import { setToken, clearAuth } from '../utils/storage';
 import { colors, radius, shadow, fonts } from '../constants/theme';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -14,6 +19,7 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleLogin() {
@@ -34,6 +40,43 @@ export default function LoginScreen({ navigation }) {
       setError('Unable to reach the server. Please check your connection.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const redirectUri = AuthSession.makeRedirectUri({ path: 'auth/callback' });
+      const authUrl = `https://hirelocal.ng/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type !== 'success') return;
+
+      const params = new URL(result.url).searchParams;
+      const token = params.get('token');
+      const oauthError = params.get('error');
+
+      if (!token) {
+        setError(oauthError || 'Google sign-in failed. Please try again.');
+        return;
+      }
+
+      // Temporarily store the token so api.getMe() can attach it
+      await setToken(token);
+      const { data } = await api.getMe();
+
+      if (data.success) {
+        await login(token, data.provider);
+      } else {
+        await clearAuth();
+        setError('Account not found. Please register as a provider first.');
+      }
+    } catch {
+      setError('Unable to complete Google sign-in. Please try again.');
+    } finally {
+      setGoogleLoading(false);
     }
   }
 
@@ -105,6 +148,29 @@ export default function LoginScreen({ navigation }) {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.btnText}>Login</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.googleBtn, googleLoading && styles.btnDisabled]}
+              onPress={handleGoogleLogin}
+              disabled={googleLoading}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <>
+                  <View style={styles.googleIcon}>
+                    <Text style={styles.googleIconText}>G</Text>
+                  </View>
+                  <Text style={styles.googleBtnText}>Continue with Google</Text>
+                </>
               )}
             </TouchableOpacity>
 
@@ -210,6 +276,45 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { marginHorizontal: 10, fontSize: 12, color: colors.muted },
+
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.full,
+    paddingVertical: 13,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  googleIconText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  googleBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
 
   note: { fontSize: 13, color: colors.muted, textAlign: 'center' },
   link: { color: colors.brand, fontWeight: '600' },
