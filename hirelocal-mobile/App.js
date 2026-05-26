@@ -1,16 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { colors } from './src/constants/theme';
 import { registerPushToken, addNotificationResponseListener } from './src/utils/notifications';
+import { api } from './src/utils/api';
+import { setToken, clearAuth } from './src/utils/storage';
 
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -79,12 +82,19 @@ function TabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.brand,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarInactiveTintColor: '#9ca3af',
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: 'rgba(16,35,29,0.1)',
+          backgroundColor: '#ffffff',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: '#e5e7eb',
           height: 60 + insets.bottom,
           paddingBottom: 8 + insets.bottom,
+          paddingTop: 6,
+          elevation: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.07,
+          shadowRadius: 10,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ color, size }) => {
@@ -120,15 +130,44 @@ function RootNavigator() {
 }
 
 function AppInner() {
-  const { provider } = useAuth();
+  const { provider, login } = useAuth();
   const navRef = useRef(null);
-  const [onboardingDone, setOnboardingDone] = useState(null); // null = checking
+  const [onboardingDone, setOnboardingDone] = useState(null);
 
   // Check onboarding status on mount
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
       setOnboardingDone(val === 'true');
     });
+  }, []);
+
+  // Handle Google OAuth deep-link callback (hirelocal://auth/callback?token=JWT)
+  // Needed on Android where Chrome Custom Tab fires a Linking event instead of
+  // returning the URL through openAuthSessionAsync.
+  useEffect(() => {
+    async function handleOAuthCallback(url) {
+      if (!url) return;
+      try {
+        const { path, queryParams } = Linking.parse(url);
+        if (path !== 'auth/callback' || !queryParams?.token) return;
+        const token = queryParams.token;
+        await setToken(token);
+        const { data } = await api.getMe();
+        if (data.success) {
+          await login(token, data.provider);
+        } else {
+          await clearAuth();
+        }
+      } catch {}
+    }
+
+    // App already running — browser redirects back via deep link
+    const sub = Linking.addEventListener('url', ({ url }) => handleOAuthCallback(url));
+
+    // App cold-started via deep link
+    Linking.getInitialURL().then((url) => handleOAuthCallback(url));
+
+    return () => sub.remove();
   }, []);
 
   // Register push token when provider logs in
@@ -138,7 +177,7 @@ function AppInner() {
     }
   }, [provider?.id]);
 
-  // Handle notification taps (navigate to relevant screen)
+  // Handle notification taps
   useEffect(() => {
     const sub = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data;
@@ -154,7 +193,6 @@ function AppInner() {
     setOnboardingDone(true);
   }
 
-  // Still checking AsyncStorage
   if (onboardingDone === null) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.surfaceDark, alignItems: 'center', justifyContent: 'center' }}>
@@ -163,7 +201,6 @@ function AppInner() {
     );
   }
 
-  // Show onboarding on first launch
   if (!onboardingDone) {
     return <OnboardingScreen onDone={finishOnboarding} />;
   }

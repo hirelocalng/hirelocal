@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
-  StyleSheet, RefreshControl,
+  StyleSheet, RefreshControl, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import ProviderCard from '../components/ProviderCard';
 import ProviderCardSkeleton from '../components/ProviderCardSkeleton';
 import { colors, radius, shadow, fonts } from '../constants/theme';
@@ -27,7 +28,7 @@ const WHY_ITEMS = [
   {
     num: '02',
     title: 'Verified & Reviewed Professionals',
-    body: 'Every provider is verified with government ID and real customer reviews. No guessing if they\'re trustworthy.',
+    body: "Every provider is verified with government ID and real customer reviews. No guessing if they're trustworthy.",
   },
   {
     num: '03',
@@ -39,7 +40,7 @@ const WHY_ITEMS = [
 const HERO_METRICS = [
   { icon: 'search-outline', title: 'Fast Search', body: 'Browse by category, state, LGA, and keyword to find exactly who you need.' },
   { icon: 'shield-checkmark-outline', title: 'Verified Profiles', body: 'Every provider is verified with a government ID before they appear in search.' },
-  { icon: 'call-outline', title: 'Direct Contact', body: 'Get the provider\'s phone and WhatsApp number instantly — no middleman.' },
+  { icon: 'call-outline', title: 'Direct Contact', body: "Get the provider's phone and WhatsApp number instantly — no middleman." },
 ];
 
 export default function HomeScreen({ navigation }) {
@@ -51,6 +52,34 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [locating, setLocating] = useState(false);
+
+  // Animated blob values for the hero gradient
+  const blob1 = useRef(new Animated.Value(0)).current;
+  const blob2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blob1, { toValue: 1, duration: 6000, useNativeDriver: true }),
+        Animated.timing(blob1, { toValue: 0, duration: 6000, useNativeDriver: true }),
+      ])
+    ).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blob2, { toValue: 1, duration: 8500, useNativeDriver: true }),
+        Animated.timing(blob2, { toValue: 0, duration: 8500, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const blob1Style = {
+    opacity: blob1.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.24] }),
+    transform: [{ scale: blob1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }) }],
+  };
+  const blob2Style = {
+    opacity: blob2.interpolate({ inputRange: [0, 1], outputRange: [0.07, 0.16] }),
+    transform: [{ scale: blob2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) }],
+  };
 
   function goToProviderAccount() {
     if (authProvider) {
@@ -85,18 +114,12 @@ export default function HomeScreen({ navigation }) {
     const params = await getNearbySearchParams();
     setLocating(false);
     if (params) {
-      navigation.navigate('SearchTab', {
-        screen: 'Search',
-        params,
-      });
+      navigation.navigate('SearchTab', { screen: 'Search', params });
     }
   }
 
   function handleCategoryChip(cat) {
-    navigation.navigate('SearchTab', {
-      screen: 'Search',
-      params: { category: cat },
-    });
+    navigation.navigate('SearchTab', { screen: 'Search', params: { category: cat } });
   }
 
   function goToProfile(id) {
@@ -133,37 +156,51 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadFeatured(true)}
-            tintColor={colors.brand}
+            tintColor="#7ee8e2"
             colors={[colors.brand]}
           />
         }
       >
 
-        {/* ── Hero copy block ── */}
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Local jobs, trusted people, faster connections</Text>
-          <Text style={styles.h1}>
-            Find reliable artisans and service professionals in your area.
-          </Text>
-          <Text style={styles.heroCopy}>
-            HireLocal helps clients discover verified plumbers, electricians, cleaners, tailors,
-            painters, repair technicians, and other skilled workers without the usual guesswork.
-          </Text>
+        {/* ── Hero: dark gradient with animated blobs ── */}
+        <LinearGradient
+          colors={['#17352f', '#1a4038', '#0d2622']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
+          {/* Decorative blobs */}
+          <Animated.View style={[styles.blob, styles.blob1, blob1Style]} />
+          <Animated.View style={[styles.blob, styles.blob2, blob2Style]} />
 
-          {/* Action buttons — stacked full-width on mobile */}
-          <View style={styles.actionCol}>
-            <TouchableOpacity
-              style={styles.btnPrimary}
-              onPress={() => navigation.navigate('SearchTab', { screen: 'Search' })}
-            >
-              <Text style={styles.btnPrimaryText}>Start Searching</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnTertiary} onPress={goToProviderAccount}>
-              <Text style={styles.btnTertiaryText}>List Your Skill</Text>
-            </TouchableOpacity>
+          {/* ── Hero copy ── */}
+          <View style={styles.heroCard}>
+            <View style={styles.eyebrowBadge}>
+              <Text style={styles.eyebrow}>Local jobs · trusted people · faster connections</Text>
+            </View>
+            <Text style={styles.h1}>
+              Find reliable artisans and service professionals in your area.
+            </Text>
+            <Text style={styles.heroCopy}>
+              HireLocal helps clients discover verified plumbers, electricians, cleaners, tailors,
+              painters, repair technicians, and other skilled workers without the usual guesswork.
+            </Text>
+
+            {/* Action buttons */}
+            <View style={styles.actionCol}>
+              <TouchableOpacity
+                style={styles.btnPrimary}
+                onPress={() => navigation.navigate('SearchTab', { screen: 'Search' })}
+              >
+                <Text style={styles.btnPrimaryText}>Start Searching</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnGlass} onPress={goToProviderAccount}>
+                <Text style={styles.btnGlassText}>List Your Skill</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Featured providers */}
+          {/* ── Featured providers ── */}
           <View style={styles.featuredList}>
             {loading ? (
               [0, 1, 2, 3].map((i) => <ProviderCardSkeleton key={i} />)
@@ -176,12 +213,12 @@ export default function HomeScreen({ navigation }) {
             )}
           </View>
 
-          {/* Hero metrics — stacked feature cards */}
+          {/* ── Feature metric cards (glassmorphism) ── */}
           <View style={styles.metricsCol}>
             {HERO_METRICS.map((m) => (
               <View key={m.title} style={styles.metricCard}>
                 <View style={styles.metricIconWrap}>
-                  <Ionicons name={m.icon} size={22} color={colors.brand} />
+                  <Ionicons name={m.icon} size={20} color="#7ee8e2" />
                 </View>
                 <View style={styles.metricText}>
                   <Text style={styles.metricTitle}>{m.title}</Text>
@@ -190,7 +227,7 @@ export default function HomeScreen({ navigation }) {
               </View>
             ))}
           </View>
-        </View>
+        </LinearGradient>
 
         {/* ── Spotlight panel (dark teal card, quick search) ── */}
         <View style={styles.spotlightSection}>
@@ -272,17 +309,16 @@ export default function HomeScreen({ navigation }) {
             </View>
           ))}
 
-          {/* Join 1,200+ clients */}
           <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>Join 1,200+ Satisfied Clients</Text>
-            <View style={styles.actionCol}>
+            <View style={styles.actionColLight}>
               <TouchableOpacity
-                style={styles.btnPrimary}
+                style={styles.btnPrimaryDark}
                 onPress={() => navigation.navigate('SearchTab', { screen: 'Search' })}
               >
                 <Text style={styles.btnPrimaryText}>Start Searching</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.btnPrimary} onPress={goToProviderAccount}>
+              <TouchableOpacity style={styles.btnPrimaryDark} onPress={goToProviderAccount}>
                 <Text style={styles.btnPrimaryText}>List Your Skill</Text>
               </TouchableOpacity>
             </View>
@@ -291,7 +327,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* ── Popular services ── */}
         <View style={styles.sectionContrast}>
-          <Text style={[styles.eyebrow, styles.centered]}>Popular services</Text>
+          <Text style={[styles.eyebrowDark, styles.centered]}>Popular services</Text>
           <Text style={[styles.h2, styles.centered]}>
             Built around the work people actually search for every day
           </Text>
@@ -378,50 +414,101 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1, backgroundColor: colors.bg },
 
-  /* Hero */
-  hero: { padding: 20, paddingTop: 32 },
+  /* ── Hero gradient ── */
+  hero: {
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    paddingBottom: 32,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+
+  /* Background blobs */
+  blob: {
+    position: 'absolute',
+    borderRadius: 9999,
+  },
+  blob1: {
+    width: 340,
+    height: 340,
+    backgroundColor: '#0f766e',
+    top: -100,
+    right: -100,
+  },
+  blob2: {
+    width: 240,
+    height: 240,
+    backgroundColor: '#2ec4b6',
+    bottom: 60,
+    left: -80,
+  },
+
+  /* Glassmorphism hero card */
+  heroCard: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 24,
+  },
+  eyebrowBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(126,232,226,0.15)',
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(126,232,226,0.25)',
+  },
   eyebrow: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.brandDark,
+    color: '#7ee8e2',
     textTransform: 'uppercase',
-    letterSpacing: 1.8,
-    marginBottom: 8,
+    letterSpacing: 1.2,
   },
   h1: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
-    color: colors.text,
+    color: '#ffffff',
     fontFamily: fonts.heading,
-    lineHeight: 40,
-    marginBottom: 10,
+    lineHeight: 38,
+    marginBottom: 12,
   },
-  h2: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    fontFamily: fonts.heading,
-    marginBottom: 16,
-    lineHeight: 30,
+  heroCopy: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.72)',
+    lineHeight: 24,
+    marginBottom: 22,
   },
-  heroCopy: { fontSize: 17, color: colors.muted, lineHeight: 25, marginBottom: 20 },
 
-  /* Action buttons — stacked full-width column */
-  actionCol: { flexDirection: 'column', gap: 10, marginBottom: 20 },
+  /* Buttons */
+  actionCol: { flexDirection: 'column', gap: 10, marginBottom: 4 },
+  actionColLight: { flexDirection: 'column', gap: 10, marginBottom: 0 },
   btnPrimary: {
     backgroundColor: colors.brand,
     borderRadius: radius.full,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: fonts.heading },
-  btnTertiary: {
-    backgroundColor: 'rgba(255,224,199,0.72)',
+  btnPrimaryDark: {
+    backgroundColor: colors.brand,
     borderRadius: radius.full,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  btnTertiaryText: { color: '#6b3b13', fontWeight: '700', fontSize: 15, fontFamily: fonts.heading },
+  btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: fonts.heading },
+  btnGlass: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: radius.full,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  btnGlassText: { color: '#ffffff', fontWeight: '700', fontSize: 15, fontFamily: fonts.heading },
   btnSecondary: {
     backgroundColor: 'rgba(255,255,255,0.55)',
     borderRadius: radius.full,
@@ -433,42 +520,42 @@ const styles = StyleSheet.create({
   btnSecondaryText: { color: colors.text, fontWeight: '700', fontSize: 15, fontFamily: fonts.heading },
 
   /* Featured providers */
-  featuredList: { marginBottom: 20 },
-  emptyText: { textAlign: 'center', color: colors.muted, marginTop: 12, fontSize: 14 },
+  featuredList: { marginBottom: 24 },
+  emptyText: { textAlign: 'center', color: 'rgba(255,255,255,0.5)', marginTop: 12, fontSize: 14 },
 
-  /* Hero metrics — vertical stacked feature cards */
-  metricsCol: { gap: 10 },
+  /* Glassmorphism metric cards */
+  metricsCol: { gap: 12 },
   metricCard: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 20,
     padding: 18,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 16,
     borderWidth: 1,
-    borderColor: 'rgba(16,35,29,0.07)',
-    ...shadow,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   metricIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(15,118,110,0.1)',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(126,232,226,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(126,232,226,0.2)',
   },
   metricText: { flex: 1 },
-  metricTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 5, fontFamily: fonts.heading },
-  metricBody: { fontSize: 14, color: colors.muted, lineHeight: 21 },
+  metricTitle: { fontSize: 15, fontWeight: '700', color: '#ffffff', marginBottom: 4, fontFamily: fonts.heading },
+  metricBody: { fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 20 },
 
-  /* Spotlight section wrapper (dark bg) */
+  /* Spotlight section */
   spotlightSection: {
     backgroundColor: colors.surfaceDark,
     paddingHorizontal: 16,
     paddingVertical: 28,
   },
-  /* Spotlight panel card */
   spotlight: {
     backgroundColor: '#0a4240',
     borderRadius: 32,
@@ -555,22 +642,24 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 36,
   },
+  h2: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    fontFamily: fonts.heading,
+    marginBottom: 16,
+    lineHeight: 30,
+  },
   whyCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 32,
     marginBottom: 14,
   },
-  whyNum: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#e94560',
-    marginBottom: 16,
-  },
+  whyNum: { fontSize: 32, fontWeight: '700', color: '#e94560', marginBottom: 16 },
   whyTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 6 },
   whyBody: { fontSize: 13, color: '#666', lineHeight: 22 },
 
-  /* Join card */
   joinCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -588,6 +677,14 @@ const styles = StyleSheet.create({
   },
 
   /* Popular services */
+  eyebrowDark: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.brandDark,
+    textTransform: 'uppercase',
+    letterSpacing: 1.8,
+    marginBottom: 8,
+  },
   sectionContrast: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 20,
