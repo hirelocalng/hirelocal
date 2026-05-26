@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -149,6 +150,8 @@ function AppInner() {
       try {
         const { path, queryParams } = Linking.parse(url);
         if (path !== 'auth/callback' || !queryParams?.token) return;
+        // Close any Chrome Custom Tab still open on Android
+        WebBrowser.dismissBrowser().catch(() => {});
         const token = queryParams.token;
         await setToken(token);
         const { data } = await api.getMe();

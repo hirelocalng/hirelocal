@@ -5,10 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { setToken, clearAuth } from '../utils/storage';
 import { colors, radius, shadow, fonts } from '../constants/theme';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -47,41 +45,21 @@ export default function LoginScreen({ navigation }) {
     setError('');
     setGoogleLoading(true);
     try {
-      const redirectUri = AuthSession.makeRedirectUri({ path: 'auth/callback' });
+      const redirectUri = 'hirelocal://auth/callback';
       const authUrl = `https://hirelocal.ng/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}`;
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
-      if (result.type !== 'success') return;
-
-      const params = new URL(result.url).searchParams;
-      const token = params.get('token');
-      const oauthError = params.get('error');
-
-      if (!token) {
-        setError(oauthError || 'Google sign-in failed. Please try again.');
-        return;
-      }
-
-      // Temporarily store the token so api.getMe() can attach it
-      await setToken(token);
-      const { data } = await api.getMe();
-
-      if (data.success) {
-        await login(token, data.provider);
-      } else {
-        await clearAuth();
-        setError('Account not found. Please register as a provider first.');
-      }
+      // openAuthSessionAsync opens a Chrome Custom Tab (Android) / SFSafariViewController (iOS).
+      // The server redirects to hirelocal://auth/callback?token=JWT after OAuth succeeds.
+      // App.js Linking listener catches that deep link, dismisses the browser tab, and logs in.
+      await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
     } catch {
-      setError('Unable to complete Google sign-in. Please try again.');
+      setError('Unable to open Google sign-in. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.logo}>HireLocal</Text>
       </View>

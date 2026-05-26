@@ -95,7 +95,7 @@ export default function SearchScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
 
       {/* ── Header ── */}
       <View style={styles.header}>

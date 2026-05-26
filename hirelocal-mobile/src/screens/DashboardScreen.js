@@ -48,7 +48,7 @@ export default function DashboardScreen({ navigation }) {
 
   if (!provider) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={colors.brand} size="large" />
         </View>

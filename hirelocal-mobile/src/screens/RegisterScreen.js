@@ -129,7 +129,7 @@ export default function RegisterScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.logo}>HireLocal</Text>
       </View>
