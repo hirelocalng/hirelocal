@@ -1273,9 +1273,13 @@ app.post('/api/contact-event', async (req, res) => {
 // ============================================================
 // GOOGLE OAUTH ROUTES
 // ============================================================
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+app.get('/auth/google', (req, res, next) => {
+  const redirectUri = req.query.redirect_uri || '';
+  if (redirectUri.startsWith('hirelocal://')) {
+    req.session.oauthMobileRedirect = redirectUri;
+  }
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 
 app.get('/auth/google/callback',
   passport.authenticate('google', {
@@ -1284,8 +1288,12 @@ app.get('/auth/google/callback',
   }),
   (req, res) => {
     const token = signToken({ role: 'provider', sub: req.user.id }, 60 * 60 * 24 * 14);
+    const mobileRedirect = req.session.oauthMobileRedirect || null;
     req.logout(() => {});
     req.session.destroy(() => {});
+    if (mobileRedirect) {
+      return res.redirect(mobileRedirect + '?token=' + encodeURIComponent(token));
+    }
     res.redirect('/auth/google/success?token=' + encodeURIComponent(token));
   }
 );
