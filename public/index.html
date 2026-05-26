@@ -5,6 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HireLocal | Trusted Local Workers Near You</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .hero-home {
+      position: relative;
+    }
+    .hero-home::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle, rgba(15, 118, 110, 0.13) 1.5px, transparent 1.5px),
+        linear-gradient(rgba(15, 118, 110, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 118, 110, 0.04) 1px, transparent 1px);
+      background-size: 28px 28px, 28px 28px, 28px 28px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .hero-home > * {
+      position: relative;
+      z-index: 1;
+    }
+  </style>
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
@@ -481,5 +502,37 @@
     }, { passive: true });
   </script>
 
+  <script>
+    (function () {
+      var token = localStorage.getItem('hirelocal_auth_token');
+      var loggedIn = false;
+      if (token) {
+        try {
+          var parts = token.split('.');
+          if (parts.length === 3) {
+            var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            if (payload.exp && payload.exp > Math.floor(Date.now() / 1000)) {
+              loggedIn = true;
+            }
+          }
+        } catch (e) {}
+      }
+      if (loggedIn) {
+        var navLinks = document.querySelector('.nav-links');
+        if (navLinks) {
+          navLinks.innerHTML =
+            '<a href="/search.html">Find Workers</a>' +
+            '<a href="/dashboard.html">Dashboard</a>' +
+            '<a href="#" id="nav-logout-btn">Logout</a>';
+          document.getElementById('nav-logout-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            localStorage.removeItem('hirelocal_auth_token');
+            localStorage.removeItem('hirelocal_provider');
+            window.location.reload();
+          });
+        }
+      }
+    })();
+  </script>
 </body>
 </html>
