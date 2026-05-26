@@ -2,6 +2,9 @@ require('dotenv').config();
 const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 const express = require('express');
+const session = require('express-session');
+const passport = require('passport');
+const configurePassport = require('./config/passport');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
@@ -47,6 +50,8 @@ const korapayPublicKey = (process.env.KORAPAY_PUBLIC_KEY || '').trim();
 if (!process.env.TOKEN_SECRET) {
 console.warn('TOKEN_SECRET is not set. Add it in .env before deployment.');
 }
+
+configurePassport(passport, pool);
 
 app.disable('x-powered-by');
 
@@ -121,6 +126,20 @@ res.setHeader('Content-Security-Policy',
 
 next();
 });
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'hirelocal_session_secret_change_me',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: isProduction,
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000
+  }
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '50mb' }));
@@ -412,6 +431,8 @@ await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS id_photo TEXT`)
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMP`);
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
 await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS name_changed_at TIMESTAMP`);
+await pool.query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS google_id VARCHAR(100)`);
+await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_providers_google_id ON providers(google_id) WHERE google_id IS NOT NULL`);
 await pool.query(`ALTER TABLE providers ALTER COLUMN photo TYPE TEXT`).catch(e => console.log('Photo column already TEXT or error:', e.message));
 
 await pool.query(`UPDATE providers SET subscription_expiry = NOW() + INTERVAL '${SUBSCRIPTION_TRIAL_DAYS} days' WHERE subscription_expiry IS NULL`);
@@ -1247,6 +1268,65 @@ app.post('/api/contact-event', async (req, res) => {
     console.error('Contact event notification error:', err.message);
     res.status(500).json({ success: false, message: 'Unable to process contact event.' });
   }
+});
+
+// ============================================================
+// GOOGLE OAUTH ROUTES
+// ============================================================
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: '/login.html?error=google_auth_failed',
+    session: true
+  }),
+  (req, res) => {
+    const token = signToken({ role: 'provider', sub: req.user.id }, 60 * 60 * 24 * 14);
+    req.logout(() => {});
+    req.session.destroy(() => {});
+    res.redirect('/auth/google/success?token=' + encodeURIComponent(token));
+  }
+);
+
+app.get('/auth/google/success', (req, res) => {
+  const token = sanitizeText(req.query.token || '');
+  if (!token) return res.redirect('/login.html');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing in...</title>
+  <style>
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f9fafb; color: #374151; }
+  </style>
+</head>
+<body>
+  <p>Signing you in&hellip;</p>
+  <script>
+    (function () {
+      var token = ${JSON.stringify(token)};
+      localStorage.setItem('hirelocal_auth_token', token);
+      fetch('/api/me', {
+        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            localStorage.setItem('hirelocal_provider', JSON.stringify(data.provider));
+          }
+          window.location.href = '/dashboard.html';
+        })
+        .catch(function () {
+          window.location.href = '/dashboard.html';
+        });
+    })();
+  </script>
+</body>
+</html>`);
 });
 
 app.use('/api', (req, res) => {
